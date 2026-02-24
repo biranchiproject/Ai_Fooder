@@ -1,0 +1,217 @@
+Build a production-ready, modern Zomato-inspired food delivery frontend using:
+
+Tech Stack:
+
+React (Vite)
+
+Tailwind CSS
+
+ShadCN UI components
+
+Framer Motion for animations
+
+Lucide React icons
+
+Fully responsive design (mobile-first)
+
+Clean modular folder structure
+
+Design Requirements:
+
+Premium modern UI
+
+Clean typography
+
+Soft shadows
+
+2xl rounded corners
+
+Smooth hover effects
+
+Micro-interactions
+
+Dark/Light mode toggle
+
+Professional layout similar to Zomato / Swiggy
+
+Core Pages to Build:
+
+Landing Page
+
+Hero section with background image
+
+Search bar (location + food search)
+
+Popular cuisines section
+
+Trending restaurants section
+
+Smooth scroll animations
+
+Authentication Pages
+
+Sign In page
+
+Sign Up page
+
+Social login buttons (UI only)
+
+Clean form validation UI
+
+Modern card layout
+
+Home Page (After Login)
+
+Top navbar with:
+
+Logo
+
+Location selector
+
+Search bar
+
+Profile dropdown
+
+Cart icon with badge
+
+Restaurant grid (cards with image, rating, delivery time, cuisine, price)
+
+Filters:
+
+Veg only
+
+Rating
+
+Delivery time
+
+Price range
+
+Restaurant Details Page
+
+Large hero image
+
+Restaurant info (rating, reviews, delivery time, cuisine)
+
+Menu categories (tabs)
+
+Food item cards with:
+
+Image
+
+Description
+
+Price
+
+Add button
+
+Animated add-to-cart interaction
+
+Cart Page
+
+Cart item list
+
+Quantity control
+
+Price breakdown
+
+Coupon UI
+
+Checkout button
+
+CSAO Recommendation Rail (Important)
+Below cart items, show:
+"Frequently Added With Your Meal"
+
+Horizontal scroll rail with:
+
+Suggested items
+
+Image
+
+Price
+
+Add button
+
+Subtle animation
+
+This rail should look premium and modern.
+
+Profile Page
+
+User info
+
+Past orders
+
+Settings
+
+Logout button
+
+UI Requirements:
+
+Smooth animations
+
+Professional spacing
+
+Modern gradients
+
+Mobile responsive
+
+Skeleton loading states
+
+Toast notifications
+
+Hover scale effects
+
+Proper empty states
+
+Project Structure:
+
+/components
+
+/pages
+
+/layouts
+
+/hooks
+
+/utils
+
+/assets
+
+State Management:
+Use React Context for:
+
+Auth state
+
+Cart state
+
+Data:
+Use dummy JSON data for:
+
+Restaurants
+
+Menu items
+
+Recommendations
+
+Important:
+
+Make it look like a real production startup website
+
+No basic UI
+
+No plain HTML
+
+Must look like a funded food-tech platform
+
+Clean code
+
+Reusable components
+
+Proper folder separation
+
+Add realistic food images from free stock sources.
+
+Ensure the entire UI is polished and impressive.
+
+PROMPT END
