@@ -9,34 +9,35 @@
     --font-sans: 'DM Sans', sans-serif;
     --font-display: 'Outfit', sans-serif;
 
-    /* Zomato-inspired vibrant primary color */
+    /* Ai fooder-inspired vibrant primary color */
     --background: 0 0% 98%;
     --foreground: 240 10% 10%;
-    
+
     --card: 0 0% 100%;
     --card-foreground: 240 10% 10%;
-    
+
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 10%;
-    
-    --primary: 348 83% 53%; /* Vibrant Coral/Red */
+
+    --primary: 355 75% 55%;
+    /* Zomato Red */
     --primary-foreground: 0 0% 100%;
-    
+
     --secondary: 240 5% 96%;
     --secondary-foreground: 240 10% 10%;
-    
+
     --muted: 240 5% 96%;
     --muted-foreground: 240 5% 45%;
-    
+
     --accent: 240 5% 96%;
     --accent-foreground: 240 10% 10%;
-    
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 240 6% 90%;
     --input: 240 6% 90%;
-    --ring: 348 83% 53%;
+    --ring: 355 75% 55%;
 
     --radius: 1rem;
   }
@@ -44,43 +45,140 @@
   .dark {
     --background: 240 10% 6%;
     --foreground: 0 0% 98%;
-    
+
     --card: 240 10% 8%;
     --card-foreground: 0 0% 98%;
-    
+
     --popover: 240 10% 8%;
     --popover-foreground: 0 0% 98%;
-    
-    --primary: 348 83% 58%;
+
+    --primary: 355 75% 55%;
     --primary-foreground: 0 0% 100%;
-    
+
     --secondary: 240 5% 15%;
     --secondary-foreground: 0 0% 98%;
-    
+
     --muted: 240 5% 15%;
     --muted-foreground: 240 5% 65%;
-    
+
     --accent: 240 5% 15%;
     --accent-foreground: 0 0% 98%;
-    
+
     --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 98%;
-    
+
     --border: 240 5% 15%;
     --input: 240 5% 15%;
-    --ring: 348 83% 58%;
+    --ring: 355 75% 55%;
+  }
+
+  .neon {
+    --background: 240 10% 4%;
+    --foreground: 320 100% 75%;
+
+    --card: 240 10% 6%;
+    --card-foreground: 320 100% 75%;
+
+    --popover: 240 10% 6%;
+    --popover-foreground: 320 100% 75%;
+
+    --primary: 320 100% 60%;
+    --primary-foreground: 240 10% 4%;
+
+    --secondary: 240 10% 12%;
+    --secondary-foreground: 320 100% 75%;
+
+    --muted: 240 10% 12%;
+    --muted-foreground: 320 40% 50%;
+
+    --accent: 320 100% 60%;
+    --accent-foreground: 240 10% 4%;
+
+    --destructive: 0 100% 60%;
+    --destructive-foreground: 240 10% 4%;
+
+    --border: 320 50% 30%;
+    --input: 320 50% 30%;
+    --ring: 320 100% 60%;
+  }
+
+  .ocean {
+    --background: 210 40% 10%;
+    --foreground: 210 20% 90%;
+
+    --card: 210 40% 14%;
+    --card-foreground: 210 20% 90%;
+
+    --popover: 210 40% 14%;
+    --popover-foreground: 210 20% 90%;
+
+    --primary: 190 100% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 20%;
+    --secondary-foreground: 210 20% 90%;
+
+    --muted: 210 40% 20%;
+    --muted-foreground: 210 20% 65%;
+
+    --accent: 210 40% 20%;
+    --accent-foreground: 190 100% 45%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 210 40% 25%;
+    --input: 210 40% 25%;
+    --ring: 190 100% 45%;
+  }
+
+  .sunset {
+    --background: 15 40% 10%;
+    --foreground: 15 20% 90%;
+
+    --card: 15 40% 14%;
+    --card-foreground: 15 20% 90%;
+
+    --popover: 15 40% 14%;
+    --popover-foreground: 15 20% 90%;
+
+    --primary: 25 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 15 40% 20%;
+    --secondary-foreground: 15 20% 90%;
+
+    --muted: 15 40% 20%;
+    --muted-foreground: 15 20% 65%;
+
+    --accent: 15 40% 20%;
+    --accent-foreground: 25 100% 50%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 15 40% 25%;
+    --input: 15 40% 25%;
+    --ring: 25 100% 50%;
   }
 
   * {
     @apply border-border;
   }
 
+  html,
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+    @apply antialiased min-h-screen bg-background text-foreground overflow-x-hidden;
+    /* Removed custom scrollbar styles that override standard behavior */
     font-family: var(--font-sans);
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-display);
     @apply tracking-tight;
   }
@@ -90,11 +188,88 @@
   .text-balance {
     text-wrap: balance;
   }
+
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  @keyframes float-x {
+    0% {
+      transform: translateX(0);
+    }
+
+    100% {
+      transform: translateX(8px);
+    }
+  }
+
+  .animate-float-x {
+    animation: float-x 4s ease-in-out infinite alternate;
+  }
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-in-up {
+    animation: fade-in-up 0.6s ease-out forwards;
+  }
+
+  /* Infinite Horizontal Scroll Animation (Left to Right) */
+  @keyframes scroll-x {
+    0% {
+      transform: translateX(calc(-50% - 12px));
+    }
+
+    100% {
+      transform: translateX(0);
+    }
+  }
+
+  .animate-scroll-x {
+    animation: scroll-x 30s linear infinite;
+    /* This ensures it does not wrap prematurely */
+    width: max-content;
+  }
+
+  .hover-pause:hover {
+    animation-play-state: paused;
+  }
+
+  /* Continuous Text Wave Animation */
+  @keyframes text-wave {
+    0% {
+      background-position: 200% center;
+    }
+
+    100% {
+      background-position: -200% center;
+    }
+  }
+
+  .animate-text-wave {
+    background: linear-gradient(to right,
+        hsl(var(--foreground)) 20%,
+        hsl(var(--primary)) 40%,
+        hsl(var(--primary)) 60%,
+        hsl(var(--foreground)) 80%);
+    background-size: 200% auto;
+    color: transparent;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: text-wave 4s linear infinite;
   }
 }

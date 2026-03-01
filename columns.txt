@@ -1,0 +1,12 @@
+- id: integer
+- name: character varying
+- email: character varying
+- segment: character varying
+- created_at: timestamp without time zone
+- mobile: text
+- full_name: text
+- photo_url: text
+- role: text
+- address: text
+- is_profile_complete: boolean
+- uid: text

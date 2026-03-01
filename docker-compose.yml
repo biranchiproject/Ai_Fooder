@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgres://csao_user:csao_pass@db:5432/csao_db
+      - PORT=5000
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 800m # Ensure we don't crash t2.micro
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=csao_user
+      - POSTGRES_PASSWORD=csao_pass
+      - POSTGRES_DB=csao_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U csao_user -d csao_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    mem_limit: 200m
+
+volumes:
+  postgres_data:

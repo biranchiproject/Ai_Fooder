@@ -7,4 +7,4 @@ tailwind-merge | Merging tailwind classes to avoid conflicts
 - Wouter is used for routing.
 - React Context is used for global Cart and Auth (dummy) state.
 - Custom fonts (Outfit for display, DM Sans for body) will be loaded from Google Fonts.
-- The UI mimics a premium Zomato/Swiggy experience with heavy emphasis on rounded corners (2xl), soft drop shadows, and a vibrant primary brand color.
+- The UI mimics a premium Ai fooder experience with heavy emphasis on rounded corners (2xl), soft drop shadows, and a vibrant primary brand color.

@@ -4,11 +4,12 @@ import { formatPrice } from "@/lib/utils";
 import type { MenuItem } from "@shared/schema";
 import { useCart } from "@/context/CartContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function MenuItemCard({ item, restaurantId }: { item: MenuItem; restaurantId: number }) {
   const { items, addToCart, decrementQuantity } = useCart();
   const [isAnimating, setIsAnimating] = useState(false);
-  
+
   const cartItem = items.find((i) => i.id === item.id);
   const qty = cartItem?.quantity || 0;
 
@@ -20,10 +21,17 @@ export function MenuItemCard({ item, restaurantId }: { item: MenuItem; restauran
     }
   };
 
-  const isVeg = item.category.toLowerCase().includes("veg") && !item.category.toLowerCase().includes("non");
+  const isVeg = item.isVeg;
 
   return (
-    <div className="flex flex-col-reverse gap-4 rounded-3xl bg-card p-4 shadow-sm border border-border/50 sm:flex-row sm:items-center">
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      whileHover={{ y: -5, transition: { duration: 0.2 } }}
+      className="flex flex-row justify-between gap-3 sm:gap-5 rounded-3xl bg-card p-4 sm:p-5 shadow-sm border border-border/50 hover:shadow-lg transition-shadow items-start sm:items-center"
+    >
       {/* Content */}
       <div className="flex flex-1 flex-col justify-center">
         {/* Veg/Non-veg indicator */}
@@ -31,23 +39,37 @@ export function MenuItemCard({ item, restaurantId }: { item: MenuItem; restauran
           <div className={`flex h-4 w-4 items-center justify-center rounded-sm border-2 ${isVeg ? 'border-green-600' : 'border-red-600'}`}>
             <div className={`h-2 w-2 rounded-full ${isVeg ? 'bg-green-600' : 'bg-red-600'}`} />
           </div>
-          {isVeg && <span className="text-xs font-semibold text-green-600 bg-green-500/10 px-2 py-0.5 rounded-md">Bestseller</span>}
         </div>
-        
+
         <h3 className="text-lg font-bold text-foreground">{item.name}</h3>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-[10px] uppercase tracking-wider font-bold bg-secondary px-2 py-0.5 rounded text-muted-foreground">
+            {item.cuisineType}
+          </span>
+          <span className="text-[10px] uppercase tracking-wider font-bold bg-primary/10 px-2 py-0.5 rounded text-primary">
+            {item.type}
+          </span>
+        </div>
         <p className="mt-1 font-semibold text-foreground/90">{formatPrice(item.price)}</p>
         <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
       </div>
 
       {/* Image & Controls */}
-      <div className="relative flex-shrink-0">
-        <div className="h-32 w-full sm:w-32 overflow-hidden rounded-2xl bg-secondary">
+      <div className="relative flex-shrink-0 self-center">
+        <div className="h-[100px] w-[100px] sm:h-[130px] sm:w-[130px] overflow-hidden rounded-2xl bg-secondary shadow-inner relative group">
           {/* Unsplash menu item image */}
           <img
-            src={item.image}
-            alt={item.name}
-            className="h-full w-full object-cover transition-transform hover:scale-105"
+            src={item.image || "https://images.unsplash.com/photo-1570197788417-0e82375c9391?w=400&q=80"}
+            alt={`Delicious ${item.name}`}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
             loading="lazy"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              if (target.src !== "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80") {
+                target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80";
+              }
+              target.onerror = null;
+            }}
           />
         </div>
 
@@ -83,25 +105,28 @@ export function MenuItemCard({ item, restaurantId }: { item: MenuItem; restauran
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 onClick={handleAdd}
-                className="relative h-10 w-28 bg-card text-primary font-bold transition-colors hover:bg-secondary"
+                className="flex h-9 sm:h-10 px-4 sm:px-6 w-full items-center justify-center font-black text-primary hover:bg-secondary transition-colors"
+                style={{
+                  color: isAnimating ? 'transparent' : undefined
+                }}
               >
-                ADD
-                {isAnimating && (
-                  <motion.div
-                    initial={{ scale: 1, opacity: 1 }}
-                    animate={{ scale: 2, opacity: 0 }}
-                    transition={{ duration: 0.5 }}
-                    className="absolute inset-0 z-10 flex items-center justify-center text-primary"
-                  >
-                    <Check className="h-5 w-5" />
-                  </motion.div>
-                )}
+                {!isAnimating && "ADD"}
               </motion.button>
             )}
           </AnimatePresence>
+          {isAnimating && (
+            <motion.div
+              className="absolute inset-0 flex items-center justify-center text-primary bg-primary/10"
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1.2, opacity: 1 }}
+              exit={{ scale: 1, opacity: 0 }}
+            >
+              <Check className="h-5 w-5" />
+            </motion.div>
+          )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

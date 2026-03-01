@@ -1,8 +1,9 @@
+import { useMemo } from "react";
 import { useRoute, Link } from "wouter";
 import { useRestaurant, useMenu } from "@/hooks/use-restaurants";
 import { MenuItemCard, MenuItemCardSkeleton } from "@/components/MenuItemCard";
-import { Button } from "@/components/ui/Button";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Star, Clock, Info, ChevronLeft, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
 import { useCart } from "@/context/CartContext";
@@ -10,33 +11,58 @@ import { useCart } from "@/context/CartContext";
 export default function RestaurantDetail() {
   const [, params] = useRoute("/restaurant/:id");
   const id = params?.id ? parseInt(params.id, 10) : 0;
-  
+
   const { data: restaurant, isLoading: isLoadingRestaurant } = useRestaurant(id);
   const { data: menuItems, isLoading: isLoadingMenu } = useMenu(id);
   const { totalItems, subtotal } = useCart();
 
-  // Group menu by category (mocked since category isn't heavily typed in schema, assuming simple strings)
-  const groupedMenu = menuItems?.reduce((acc, item) => {
-    const cat = item.category || "Recommended";
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(item);
-    return acc;
-  }, {} as Record<string, typeof menuItems>);
+  // Filter items and group by category
+  const filteredItems = useMemo(() => {
+    if (!menuItems) return [];
+    const searchParams = new URLSearchParams(window.location.search);
+    const vegFilter = searchParams.get("filter") === "veg";
+    const nonVegFilter = searchParams.get("filter") === "non-veg";
+    const pureVegFilter = searchParams.get("filter") === "pure-veg";
+
+    return menuItems.filter(item => {
+      if (vegFilter && !item.isVeg) return false;
+      if (nonVegFilter && item.isVeg) return false;
+      if (pureVegFilter && !item.isPureVeg) return false;
+      return true;
+    });
+  }, [menuItems]);
+
+  const groupedMenu = useMemo(() => {
+    return filteredItems.reduce((acc, item) => {
+      const cat = item.category || "Recommended";
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(item);
+      return acc;
+    }, {} as Record<string, typeof menuItems>);
+  }, [filteredItems]);
+
+  const vegFilterActive = new URLSearchParams(window.location.search).get("filter") === "veg" ||
+    new URLSearchParams(window.location.search).get("filter") === "pure-veg";
 
   return (
     <div className="min-h-screen bg-background pb-32">
       {/* Sticky Header with Back Button */}
-      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50">
-        <div className="mx-auto max-w-4xl px-4 py-4 sm:px-6">
+      <div className="sticky top-16 z-[40] bg-background/95 backdrop-blur-xl border-b border-border/50 shadow-sm transition-all duration-300">
+        <div className="mx-auto max-w-4xl px-4 py-4 sm:px-6 flex items-center gap-4">
           <Link href="/">
-            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-secondary/50">
+            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-secondary shadow-md hover:bg-primary hover:text-white transition-all active:scale-90">
               <ChevronLeft className="h-5 w-5" />
             </Button>
           </Link>
+          {restaurant && (
+            <span className="font-display font-black text-lg truncate opacity-0 animate-in-up" style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}>
+              {restaurant.name}
+            </span>
+          )}
         </div>
       </div>
 
-      <main className="mx-auto max-w-4xl px-4 sm:px-6">
+      <main className="mx-auto max-w-4xl px-4 sm:px-6 animate-in-up" style={{ animationDelay: '100ms' }}>
         {isLoadingRestaurant ? (
           <div className="mt-6 space-y-6">
             <Skeleton className="h-48 w-full rounded-[2rem]" />
@@ -46,7 +72,7 @@ export default function RestaurantDetail() {
             </div>
           </div>
         ) : restaurant && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="mt-6"
@@ -55,13 +81,18 @@ export default function RestaurantDetail() {
             <div className="relative overflow-hidden rounded-[2rem] bg-card p-6 shadow-xl shadow-black/5 border border-border/50">
               <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
                 <div>
-                  <h1 className="font-display text-3xl font-black md:text-4xl text-foreground">
+                  <motion.h1
+                    initial={{ opacity: 0, x: -30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+                    className="font-display text-3xl font-black md:text-4xl animate-text-wave bg-clip-text text-transparent pb-1"
+                  >
                     {restaurant.name}
-                  </h1>
+                  </motion.h1>
                   <p className="mt-2 text-lg text-muted-foreground">{restaurant.cuisine}</p>
                   <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
-                    Mission District • {restaurant.priceRange}
+                    Mission District • {restaurant.price_range}
                   </p>
                 </div>
 
@@ -76,17 +107,25 @@ export default function RestaurantDetail() {
                   <div className="flex flex-col items-center justify-center pl-2">
                     <div className="flex items-center gap-1 text-foreground font-bold text-lg">
                       <Clock className="h-5 w-5" />
-                      {restaurant.deliveryTime}
+                      {restaurant.delivery_time}
                     </div>
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Delivery Time</span>
                   </div>
                 </div>
               </div>
 
-              {/* Notice */}
-              <div className="mt-6 flex items-center gap-3 rounded-xl bg-primary/5 p-4 text-primary">
-                <Info className="h-5 w-5 shrink-0" />
-                <p className="text-sm font-medium">Order for $25 or more to get free delivery in your area!</p>
+              {/* Optional Veg Filter Status */}
+              <div className="mt-6 flex flex-col gap-3">
+                {vegFilterActive && (
+                  <div className="flex items-center gap-2 px-1">
+                    <div className="flex h-4 w-4 items-center justify-center rounded-sm border-2 border-green-600">
+                      <div className="h-2 w-2 rounded-full bg-green-600" />
+                    </div>
+                    <span className="text-sm font-bold text-green-600">
+                      Showing only {new URLSearchParams(window.location.search).get("filter") === "pure-veg" ? "Pure Veg" : "Veg"} items
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
@@ -103,19 +142,23 @@ export default function RestaurantDetail() {
             <div className="space-y-6">
               {[1, 2, 3].map((i) => <MenuItemCardSkeleton key={i} />)}
             </div>
-          ) : groupedMenu && (
+          ) : (
             <div className="space-y-12">
-              {Object.entries(groupedMenu).map(([category, items]) => (
-                <div key={category} className="space-y-6">
-                  <h3 className="font-display text-xl font-bold text-foreground sticky top-[4.5rem] bg-background/95 py-2 z-30 backdrop-blur-sm">
-                    {category} <span className="text-muted-foreground text-sm font-medium ml-2">({items.length})</span>
-                  </h3>
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    {items.map((item) => (
-                      <MenuItemCard key={item.id} item={item} restaurantId={id} />
-                    ))}
+              {groupedMenu && Object.entries(groupedMenu).map(([category, items]) => (
+                items && items.length > 0 && (
+                  <div key={category} className="space-y-6">
+                    <h3 className="font-display text-xl font-bold text-foreground sticky top-[4.5rem] bg-background/95 py-2 z-30 backdrop-blur-sm">
+                      {category} <span className="text-muted-foreground text-sm font-medium ml-2">({items.length})</span>
+                    </h3>
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                      {items.map((item, index) => (
+                        <div key={item.id} className="animate-in-up" style={{ animationDelay: `${index * 50}ms` }}>
+                          <MenuItemCard item={item} restaurantId={id} />
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )
               ))}
             </div>
           )}
@@ -132,7 +175,7 @@ export default function RestaurantDetail() {
           <div className="mx-auto flex max-w-4xl items-center justify-between rounded-2xl bg-primary px-6 py-4 text-primary-foreground shadow-lg">
             <div>
               <p className="text-sm font-semibold opacity-90">{totalItems} ITEM{totalItems > 1 && 'S'}</p>
-              <p className="font-display text-xl font-bold">${(subtotal / 100).toFixed(2)}</p>
+              <p className="font-display text-xl font-bold">₹{(subtotal / 100).toFixed(2)}</p>
             </div>
             <Link href="/cart">
               <Button variant="secondary" className="font-bold rounded-xl h-12 px-6 shadow-md hover:scale-105 transition-transform">

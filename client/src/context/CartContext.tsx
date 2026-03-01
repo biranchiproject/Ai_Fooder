@@ -1,5 +1,8 @@
 import { createContext, useContext, useState, ReactNode, useMemo } from "react";
 import type { MenuItem } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 export interface CartItem extends MenuItem {
   quantity: number;
@@ -21,8 +24,15 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [currentRestaurantId, setCurrentRestaurantId] = useState<number | null>(null);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const addToCart = (item: MenuItem, restaurantId: number) => {
+    if (!user) {
+      setLocation("/auth");
+      return;
+    }
     setItems((prev) => {
       // Prevent ordering from multiple restaurants at once
       if (currentRestaurantId !== null && currentRestaurantId !== restaurantId && prev.length > 0) {
@@ -32,7 +42,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCurrentRestaurantId(restaurantId);
         return [{ ...item, quantity: 1 }];
       }
-      
+
       setCurrentRestaurantId(restaurantId);
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {

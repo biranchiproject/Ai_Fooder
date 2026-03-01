@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-type Theme = "dark" | "light" | "system";
+type Theme = "dark" | "light" | "system" | "neon" | "ocean" | "sunset";
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(
@@ -9,7 +9,7 @@ export function useTheme() {
 
   useEffect(() => {
     const root = window.document.documentElement;
-    root.classList.remove("light", "dark");
+    root.classList.remove("light", "dark", "neon", "ocean", "sunset");
 
     if (theme === "system") {
       const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
@@ -29,5 +29,10 @@ export function useTheme() {
     localStorage.setItem("theme", newTheme);
   };
 
-  return { theme, toggleTheme };
+  return {
+    theme, toggleTheme, setTheme: (newTheme: Theme) => {
+      setTheme(newTheme);
+      localStorage.setItem("theme", newTheme);
+    }
+  };
 }

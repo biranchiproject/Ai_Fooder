@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 
 // Dummy fetch wrapper to handle errors
@@ -12,12 +12,17 @@ async function fetchApi(url: string) {
 }
 
 export function useRestaurants() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: [api.restaurants.list.path],
-    queryFn: async () => {
-      const data = await fetchApi(api.restaurants.list.path);
-      // Let zod parse it to ensure contract
+    queryFn: async ({ pageParam = 0 }) => {
+      const url = `${api.restaurants.list.path}?offset=${pageParam}&limit=12`;
+      const data = await fetchApi(url);
       return api.restaurants.list.responses[200].parse(data);
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length < 12) return undefined;
+      return allPages.length * 12;
     },
   });
 }
@@ -46,12 +51,55 @@ export function useMenu(restaurantId: number) {
   });
 }
 
-export function useRecommendations() {
+export function useRecommendations(cartItemIds: number[] = []) {
   return useQuery({
-    queryKey: [api.recommendations.list.path],
+    queryKey: ["/api/recommendations", cartItemIds],
     queryFn: async () => {
-      const data = await fetchApi(api.recommendations.list.path);
-      return api.recommendations.list.responses[200].parse(data);
+      if (cartItemIds.length === 0) {
+        // Fallback to basic list if cart is empty
+        const data = await fetchApi(api.recommendations.list.path);
+        return { items: api.recommendations.list.responses[200].parse(data), experiment_group: "control" };
+      }
+
+      const res = await fetch("/api/recommendations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ cart_item_ids: cartItemIds }),
+      });
+
+      if (!res.ok) {
+        // Fallback to basic list if CSAO engine fails or database is missing
+        const fallbackData = await fetchApi(api.recommendations.list.path);
+        return { items: api.recommendations.list.responses[200].parse(fallbackData), experiment_group: "fallback" };
+      }
+
+      return res.json(); // { items: [], experiment_group: "", cached: boolean }
     },
   });
 }
+
+export function useCategoryItems(type: string) {
+  return useQuery({
+    queryKey: ["/api/category", type],
+    queryFn: async () => {
+      const res = await fetch(`/api/category/${type}`);
+      if (!res.ok) throw new Error("Failed to fetch category items");
+      return res.json();
+    },
+    enabled: !!type,
+  });
+}
+
+export function useAllMenuItems() {
+  return useQuery({
+    queryKey: ["/api/food"],
+    queryFn: async () => {
+      const res = await fetch("/api/food");
+      if (!res.ok) throw new Error("Failed to fetch all food items");
+      return res.json();
+    },
+  });
+}
+

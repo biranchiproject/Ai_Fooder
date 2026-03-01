@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: food-delivery-hub
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Note: For free tier, we recommend using an external free PostgreSQL database (e.g. Supabase or Neon)
+      # set DATABASE_URL in the Render dashboard
+    plan: free
+
+  # Uncomment below if you want to run Render's PostgreSQL (Note: Render Postgres free tier expires in 90 days)
+  # - type: pgo
+  #   name: food-delivery-db
+  #   plan: free

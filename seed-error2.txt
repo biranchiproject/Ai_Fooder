@@ -1,0 +1,11 @@
+Seed error:
+error: update or delete on table "restaurants" violates foreign key constraint "items_restaurant_id_fkey" on table "items"
+Message:
+update or delete on table "restaurants" violates foreign key constraint "items_restaurant_id_fkey" on table "items"
+Stack:
+error: update or delete on table "restaurants" violates foreign key constraint "items_restaurant_id_fkey" on table "items"
+    at C:\Users\biran\Downloads\Food-Delivery-Hub\Food-Delivery-Hub\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async DatabaseStorage.clearAllRestaurants (C:\Users\biran\Downloads\Food-Delivery-Hub\Food-Delivery-Hub\server\storage.ts:104:5)
+    at async seedData (C:\Users\biran\Downloads\Food-Delivery-Hub\Food-Delivery-Hub\server\routes.ts:135:3)
+    at async runSeed (C:\Users\biran\Downloads\Food-Delivery-Hub\Food-Delivery-Hub\run-seed.ts:8:9)
