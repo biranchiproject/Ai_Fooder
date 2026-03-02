@@ -109,8 +109,13 @@ export default function Home() {
         <div className="mb-8 md:mb-12 overflow-x-auto touch-pan-x pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="flex gap-4 sm:gap-6 md:gap-8 w-max">
             {CATEGORIES.map((cat, index) => (
-              <button
+              <motion.button
                 key={`${cat.name}-${index}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setLocation(`/category/${cat.type}`)}
                 className="flex flex-col items-center gap-2 sm:gap-3 w-[76px] sm:w-[90px] md:w-[120px] shrink-0 group outline-none"
               >
@@ -120,7 +125,7 @@ export default function Home() {
                 <span className="text-[11px] sm:text-[13px] md:text-[15px] font-semibold tracking-tight transition-colors text-foreground text-center group-hover:text-primary leading-tight">
                   {cat.name}
                 </span>
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
