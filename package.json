@@ -7,6 +7,7 @@
     "dev": "cross-env NODE_ENV=development tsx server/index.ts",
     "predev": "node script/cleanup-port.js || exit 0",
     "build": "tsx script/build.ts",
+    "prestart": "npm run db:push",
     "start": "node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push"
