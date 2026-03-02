@@ -5,7 +5,11 @@ import * as schema from "@shared/schema";
 const { Pool } = pg;
 
 export const pool = process.env.DATABASE_URL
-  ? new Pool({ connectionString: process.env.DATABASE_URL })
+  ? new Pool({
+    connectionString: process.env.DATABASE_URL,
+    // Hosted Postgres (Render/Neon/Supabase) requires SSL
+    ssl: process.env.DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false }
+  })
   : null;
 
 export const db = pool
