@@ -36,8 +36,13 @@ app.use(
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
+// Required for secure cookies on Render/behind proxy
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 app.use(cors({
-  origin: process.env.VITE_API_URL ? [process.env.VITE_API_URL, "https://ai-fooder.pages.dev", "http://localhost:5001"] : true,
+  origin: "https://ai-fooder.pages.dev",
   credentials: true,
 }));
 
