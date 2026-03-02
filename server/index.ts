@@ -77,6 +77,16 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
+  // AWS Elastic Beanstalk Health Check
+  app.get(['/', '/api/health'], (req, res, next) => {
+    if (req.path === '/' && process.env.NODE_ENV === "production") {
+      // For root path in production, let serveStatic handle it so the frontend loads
+      return next();
+    }
+    // Otherwise respond with basic health check
+    res.status(200).json({ status: "ok", message: "Server is healthy" });
+  });
+
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
