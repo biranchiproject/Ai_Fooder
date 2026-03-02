@@ -16,12 +16,12 @@ const FILTERS = ["Veg", "Non-Veg", "Fast Delivery", "Rating 4.0+", "Offers", "Pu
 const CATEGORIES = [
   { name: "Odia Special", type: "odia-special", image: "/assets/food/odia-special/pakhala.png" },
   { name: "Biryani", type: "biryani", image: "/assets/food/biryani/hyderabadi.png" },
-  { name: "Ice Cream", type: "ice-cream", image: "/assets/food/ice-cream/Vanilla Ice Cream.png" },
-  { name: "Cold Drinks", type: "cold-drinks", image: "/assets/food/cold-drinks/Coca Cola.png" },
+  { name: "Ice Cream", type: "ice-cream", image: "/assets/food/ice-cream/vanilla-ice-cream.png" },
+  { name: "Cold Drinks", type: "cold-drinks", image: "/assets/food/cold-drinks/coca-cola.png" },
   { name: "North Indian", type: "north-indian", image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=200&h=200&fit=crop&q=80" },
   { name: "South Indian", type: "south-indian", image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=200&h=200&fit=crop&q=80" },
   { name: "Chinese", type: "chinese", image: "https://images.unsplash.com/photo-1525755662778-989d0524087e?w=200&h=200&fit=crop&q=80" },
-  { name: "Sweets", type: "sweets", image: "/assets/food/sweets/Rasagola.png" },
+  { name: "Sweets", type: "sweets", image: "/assets/food/sweets/rasagola.png" },
   { name: "Beverages", type: "beverages", image: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=200&h=200&fit=crop&q=80" },
   { name: "Fast Food", type: "fast-food", image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&h=200&fit=crop&q=80" },
 ];

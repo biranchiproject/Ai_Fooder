@@ -83,16 +83,16 @@ export const foodData: FoodItem[] = [
     { id: 50, name: "Chicken Manchurian", category: "Chinese", cuisine: "Chinese", price: 230, rating: "4.7", isVeg: false, image: "https://images.unsplash.com/photo-1525755662778-989d0524087e?auto=format&fit=crop&q=80&w=600&h=400", description: "Crispy chicken in a spicy, umami Manchurian sauce." },
 
     // Sweets
-    { id: 51, name: "Rasagola", category: "Sweets", cuisine: "Odia", price: 120, rating: "4.9", isVeg: true, image: "/assets/food/sweets/Rasagola.png", description: "Traditional soft cheese balls in sugar syrup." },
-    { id: 52, name: "Chhena Poda", category: "Sweets", cuisine: "Odia", price: 180, rating: "4.8", isVeg: true, image: "/assets/food/sweets/Chhena Poda.png", description: "Roasted cottage cheese cake with a burnt caramelized top." },
-    { id: 53, name: "Chhena Jhili", category: "Sweets", cuisine: "Odia", price: 140, rating: "4.9", isVeg: true, image: "/assets/food/sweets/Chhena Jhili.png", description: "Soft cheese rings from Nimapada, fried and dipped in syrup." },
-    { id: 54, name: "Rasabali", category: "Sweets", cuisine: "Odia", price: 160, rating: "4.8", isVeg: true, image: "/assets/food/sweets/Rasabali.png", description: "Flat cheese patties soaked in thickened milk (rabri)." },
-    { id: 55, name: "Khaja", category: "Sweets", cuisine: "Odia", price: 100, rating: "4.7", isVeg: true, image: "/assets/food/sweets/Khaja.png", description: "Layered crispy pastry from Puri temple." },
-    { id: 56, name: "Arisa Pitha", category: "Sweets", cuisine: "Odia", price: 110, rating: "4.6", isVeg: true, image: "/assets/food/sweets/Arisa Pitha.png", description: "Traditional rice and jaggery pancake with sesame seeds." },
-    { id: 57, name: "Manda Pitha", category: "Sweets", cuisine: "Odia", price: 90, rating: "4.5", isVeg: true, image: "/assets/food/sweets/Manda Pitha.png", description: "Steamed rice dumplings with sweet coconut filling." },
-    { id: 58, name: "Kakara Pitha", category: "Sweets", cuisine: "Odia", price: 95, rating: "4.6", isVeg: true, image: "/assets/food/sweets/Kakara Pitha.png", description: "Sweet fried suji pancakes with coconut stuffing." },
-    { id: 59, name: "Malpua", category: "Sweets", cuisine: "Indian", price: 130, rating: "4.7", isVeg: true, image: "/assets/food/sweets/Malpua.png", description: "Sweet fried pancakes served with rabri." },
-    { id: 60, name: "Rabdi", category: "Sweets", cuisine: "Indian", price: 150, rating: "4.9", isVeg: true, image: "/assets/food/sweets/Rabdi.png", description: "Thickened milk dessert with saffron and nuts." },
+    { id: 51, name: "Rasagola", category: "Sweets", cuisine: "Odia", price: 120, rating: "4.9", isVeg: true, image: "/assets/food/sweets/rasagola.png", description: "Traditional soft cheese balls in sugar syrup." },
+    { id: 52, name: "Chhena Poda", category: "Sweets", cuisine: "Odia", price: 180, rating: "4.8", isVeg: true, image: "/assets/food/sweets/chhena-poda.png", description: "Roasted cottage cheese cake with a burnt caramelized top." },
+    { id: 53, name: "Chhena Jhili", category: "Sweets", cuisine: "Odia", price: 140, rating: "4.9", isVeg: true, image: "/assets/food/sweets/chhena-jhili.png", description: "Soft cheese rings from Nimapada, fried and dipped in syrup." },
+    { id: 54, name: "Rasabali", category: "Sweets", cuisine: "Odia", price: 160, rating: "4.8", isVeg: true, image: "/assets/food/sweets/rasabali.png", description: "Flat cheese patties soaked in thickened milk (rabri)." },
+    { id: 55, name: "Khaja", category: "Sweets", cuisine: "Odia", price: 100, rating: "4.7", isVeg: true, image: "/assets/food/sweets/khaja.png", description: "Layered crispy pastry from Puri temple." },
+    { id: 56, name: "Arisa Pitha", category: "Sweets", cuisine: "Odia", price: 110, rating: "4.6", isVeg: true, image: "/assets/food/sweets/arisa-pitha.png", description: "Traditional rice and jaggery pancake with sesame seeds." },
+    { id: 57, name: "Manda Pitha", category: "Sweets", cuisine: "Odia", price: 90, rating: "4.5", isVeg: true, image: "/assets/food/sweets/manda-pitha.png", description: "Steamed rice dumplings with sweet coconut filling." },
+    { id: 58, name: "Kakara Pitha", category: "Sweets", cuisine: "Odia", price: 95, rating: "4.6", isVeg: true, image: "/assets/food/sweets/kakara-pitha.png", description: "Sweet fried suji pancakes with coconut stuffing." },
+    { id: 59, name: "Malpua", category: "Sweets", cuisine: "Indian", price: 130, rating: "4.7", isVeg: true, image: "/assets/food/sweets/malpua.png", description: "Sweet fried pancakes served with rabri." },
+    { id: 60, name: "Rabdi", category: "Sweets", cuisine: "Indian", price: 150, rating: "4.9", isVeg: true, image: "/assets/food/sweets/rabdi.png", description: "Thickened milk dessert with saffron and nuts." },
 
     // Cold Drinks (added in Batch 2)
 
