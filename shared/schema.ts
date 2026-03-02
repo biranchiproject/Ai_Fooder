@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, numeric, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, boolean, varchar, json, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -58,6 +58,12 @@ export const orders = pgTable("orders", {
   total: integer("total").notNull(),
   status: text("status").notNull().default("completed"),
   createdAt: text("created_at").notNull(), // To simply handle timestamps in this hackathon
+});
+
+export const sessions = pgTable("session", {
+  sid: varchar("sid").primaryKey(),
+  sess: json("sess").notNull(),
+  expire: timestamp("expire", { precision: 6 }).notNull(),
 });
 
 export const orderItems = pgTable("order_items", {
