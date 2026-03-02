@@ -11,9 +11,24 @@ const firebaseConfig = {
     measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
+// Check if API key exists to prevent complete app crashes when env vars are missing
+export const isFirebaseAuthConfigured = !!firebaseConfig.apiKey;
 
+let app;
+let auth: any = null;
+let googleProvider: GoogleAuthProvider | null = null;
+
+if (isFirebaseAuthConfigured) {
+    try {
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        googleProvider = new GoogleAuthProvider();
+    } catch (e) {
+        console.error("Firebase initialization failed:", e);
+    }
+} else {
+    console.warn("Firebase explicitly unconfigured - missing VITE_FIREBASE_API_KEY environment variable. Authentication will not work.");
+}
+
+export { auth, googleProvider };
 export default app;

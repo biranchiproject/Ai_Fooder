@@ -14,7 +14,7 @@ import {
     ConfirmationResult,
     UserCredential
 } from "firebase/auth";
-import { auth, googleProvider } from "../lib/firebase";
+import { auth, googleProvider, isFirebaseAuthConfigured } from "../lib/firebase";
 
 type AuthContextType = {
     user: User | null;
@@ -61,6 +61,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const googleSignInMutation = useMutation({
         mutationFn: async () => {
+            if (!isFirebaseAuthConfigured || !auth || !googleProvider) {
+                throw new Error("Firebase authentication is not configured. Please add VITE_FIREBASE_API_KEY to your environment variables.");
+            }
             const result = await signInWithPopup(auth, googleProvider);
             const token = await result.user.getIdToken();
             const res = await apiRequest("POST", "/api/auth/firebase", { token });
