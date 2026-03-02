@@ -1,9 +1,13 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
+import { apiRequest } from "../lib/queryClient";
+
+const API_BASE = import.meta.env.VITE_API_URL || "";
 
 // Dummy fetch wrapper to handle errors
 async function fetchApi(url: string) {
-  const res = await fetch(url, { credentials: "include" });
+  const fullUrl = url.startsWith("http") ? url : `${API_BASE}${url}`;
+  const res = await fetch(fullUrl, { credentials: "include" });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({ message: res.statusText }));
     throw new Error(errorData.message || "An error occurred");
@@ -61,7 +65,8 @@ export function useRecommendations(cartItemIds: number[] = []) {
         return { items: api.recommendations.list.responses[200].parse(data), experiment_group: "control" };
       }
 
-      const res = await fetch("/api/recommendations", {
+      const fullUrl = "/api/recommendations".startsWith("http") ? "/api/recommendations" : `${API_BASE}/api/recommendations`;
+      const res = await fetch(fullUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -84,7 +89,9 @@ export function useCategoryItems(type: string) {
   return useQuery({
     queryKey: ["/api/category", type],
     queryFn: async () => {
-      const res = await fetch(`/api/category/${type}`);
+      const url = `/api/category/${type}`;
+      const fullUrl = url.startsWith("http") ? url : `${API_BASE}${url}`;
+      const res = await fetch(fullUrl);
       if (!res.ok) throw new Error("Failed to fetch category items");
       return res.json();
     },
@@ -96,7 +103,9 @@ export function useAllMenuItems() {
   return useQuery({
     queryKey: ["/api/food"],
     queryFn: async () => {
-      const res = await fetch("/api/food");
+      const url = "/api/food";
+      const fullUrl = url.startsWith("http") ? url : `${API_BASE}${url}`;
+      const res = await fetch(fullUrl);
       if (!res.ok) throw new Error("Failed to fetch all food items");
       return res.json();
     },
