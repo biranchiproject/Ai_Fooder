@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Bot, Sparkles, Zap } from "lucide-react";
+import { Sparkles, Zap } from "lucide-react";
 
 export function AIPromoBanner() {
     const handleClick = () => {
@@ -14,70 +14,55 @@ export function AIPromoBanner() {
     };
 
     return (
-        <section className="mb-12">
+        <section className="mb-6">
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 whileHover={{ scale: 1.01 }}
                 onClick={handleClick}
-                className="relative cursor-pointer py-12 px-6 group flex flex-col items-center justify-center text-center rounded-[2.5rem] border border-primary/20 bg-primary/5 backdrop-blur-sm overflow-hidden"
+                className="relative cursor-pointer py-4 px-6 group flex items-center justify-between bg-primary/5 rounded-[1.5rem] border border-primary/20 hover:bg-primary/10 transition-all shadow-sm overflow-hidden"
             >
-                {/* Background Glows */}
-                <motion.div
-                    animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
-                    transition={{ duration: 8, repeat: Infinity }}
-                    className="absolute -top-10 -left-10 w-48 h-48 bg-primary/20 rounded-full blur-3xl pointer-events-none"
-                />
-                <motion.div
-                    animate={{ scale: [1.2, 1, 1.2], opacity: [0.1, 0.2, 0.1] }}
-                    transition={{ duration: 8, repeat: Infinity }}
-                    className="absolute -bottom-10 -right-10 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"
-                />
-
-                <div className="space-y-6 max-w-3xl mx-auto z-10">
-                    <div className="flex justify-center mb-2">
-                        <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                            className="p-3 bg-primary/10 rounded-2xl border border-primary/20"
+                <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 w-full relative z-10">
+                    <div className="flex items-center gap-3 shrink-0">
+                        <div className="p-2 bg-primary/20 rounded-xl group-hover:bg-primary/30 transition-colors">
+                            <Zap className="h-5 w-5 text-primary fill-primary animate-pulse" />
+                        </div>
+                        <motion.h2
+                            className="text-lg sm:text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-[#ff0080] via-[#7928ca] to-[#0070f3] leading-none"
+                            animate={{ opacity: [0.9, 1, 0.9] }}
+                            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                         >
-                            <Bot className="h-6 w-6 text-primary" />
-                        </motion.div>
+                            AI Powered Auto Ordering
+                        </motion.h2>
                     </div>
 
-                    {/* animated Gradient Heading */}
-                    <motion.h2
-                        animate={{
-                            backgroundImage: [
-                                "linear-gradient(to right, #ff0080, #7928ca)",
-                                "linear-gradient(to right, #0070f3, #00dfd8)",
-                                "linear-gradient(to right, #7928ca, #ff0080)"
-                            ]
-                        }}
-                        transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
-                        className="text-4xl sm:text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r leading-tight"
-                    >
-                        ⚡ AI Powered Auto Food Delivery
-                    </motion.h2>
+                    <div className="hidden sm:block h-8 w-px bg-border/20 rotate-12" />
 
-                    <p className="text-[10px] font-black text-white bg-destructive px-3 py-1 rounded-full inline-flex items-center gap-2 shadow-lg shadow-destructive/20 animate-pulse">
-                        <Zap className="h-3 w-3 fill-white" /> COMING SOON
-                    </p>
-
-                    <p className="text-base sm:text-xl font-medium text-muted-foreground leading-relaxed">
-                        Talk to our AI assistant and place your order automatically. <br className="hidden sm:block" />
-                        Just click anywhere on this section to start your conversation.
-                    </p>
+                    <div className="flex-1 text-center sm:text-left min-w-0">
+                        <div className="flex items-center gap-2 mb-1 justify-center sm:justify-start">
+                            <span className="text-[10px] font-black text-white bg-destructive px-2 py-0.5 rounded uppercase tracking-tighter">New</span>
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">Voice Assistant</span>
+                        </div>
+                        <p className="text-xs font-semibold text-muted-foreground truncate leading-tight">
+                            Place your order automatically with just one voice command.
+                        </p>
+                    </div>
 
                     <motion.div
-                        animate={{ opacity: [0.4, 0.8, 0.4] }}
-                        transition={{ duration: 3, repeat: Infinity }}
-                        className="text-[11px] uppercase tracking-[0.4em] font-black text-primary bg-primary/5 px-6 py-2 rounded-xl"
+                        animate={{ x: [0, 5, 0] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors"
                     >
-                        Click to activate ordering assistant
+                        Activate Assistant
+                        <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30">
+                            <Zap className="h-3 w-3" />
+                        </div>
                     </motion.div>
                 </div>
+
+                {/* Decorative background glow */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -z-0 group-hover:bg-primary/10 transition-colors" />
             </motion.div>
         </section>
     );

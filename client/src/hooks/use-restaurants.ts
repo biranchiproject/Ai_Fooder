@@ -55,7 +55,7 @@ export function useMenu(restaurantId: number) {
   });
 }
 
-export function useRecommendations(cartItemIds: number[] = []) {
+export function useRecommendations(cartItemIds: number[] = [], userId?: number) {
   return useQuery({
     queryKey: ["/api/recommendations", cartItemIds],
     queryFn: async () => {
@@ -65,13 +65,19 @@ export function useRecommendations(cartItemIds: number[] = []) {
         return { items: api.recommendations.list.responses[200].parse(data), experiment_group: "control" };
       }
 
+      const now = new Date();
       const fullUrl = "/api/recommendations".startsWith("http") ? "/api/recommendations" : `${API_BASE}/api/recommendations`;
       const res = await fetch(fullUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ cart_item_ids: cartItemIds }),
+        body: JSON.stringify({
+          cart_item_ids: cartItemIds,
+          user_id: userId || null,
+          hour_of_day: now.getHours(),
+          day_of_week: now.getDay(),
+        }),
       });
 
       if (!res.ok) {
@@ -80,7 +86,7 @@ export function useRecommendations(cartItemIds: number[] = []) {
         return { items: api.recommendations.list.responses[200].parse(fallbackData), experiment_group: "fallback" };
       }
 
-      return res.json(); // { items: [], experiment_group: "", cached: boolean }
+      return res.json(); // { items: [], experiment_group: "", cached: boolean, context: {} }
     },
   });
 }

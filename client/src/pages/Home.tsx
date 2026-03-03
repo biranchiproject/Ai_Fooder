@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { FilterPanel } from "@/components/FilterPanel";
 import { AIPromoBanner } from "@/components/AIPromoBanner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { LocationSelector } from "@/components/LocationSelector";
+import { cn } from "@/lib/utils";
 
 import { useLocation as useGlobalLocation } from "@/context/LocationContext";
 
@@ -18,12 +21,12 @@ const CATEGORIES = [
   { name: "Biryani", type: "biryani", image: "/assets/food/biryani/hyderabadi.png" },
   { name: "Ice Cream", type: "ice-cream", image: "/assets/food/ice-cream/vanilla-ice-cream.png" },
   { name: "Cold Drinks", type: "cold-drinks", image: "/assets/food/cold-drinks/coca-cola.png" },
-  { name: "North Indian", type: "north-indian", image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=200&h=200&fit=crop&q=80" },
-  { name: "South Indian", type: "south-indian", image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=200&h=200&fit=crop&q=80" },
-  { name: "Chinese", type: "chinese", image: "https://images.unsplash.com/photo-1525755662778-989d0524087e?w=200&h=200&fit=crop&q=80" },
+  { name: "North Indian", type: "north-indian", image: "/assets/food/north-indian/main.png" },
+  { name: "South Indian", type: "south-indian", image: "/assets/food/south-indian/main.png" },
+  { name: "Chinese", type: "chinese", image: "/assets/food/chinese/main.png" },
   { name: "Sweets", type: "sweets", image: "/assets/food/sweets/rasagola.png" },
-  { name: "Beverages", type: "beverages", image: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=200&h=200&fit=crop&q=80" },
-  { name: "Fast Food", type: "fast-food", image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&h=200&fit=crop&q=80" },
+  { name: "Beverages", type: "beverages", image: "/assets/food/beverages/main.png" },
+  { name: "Fast Food", type: "fast-food", image: "/assets/food/fast-food/main.png" },
 ];
 
 export default function Home() {
@@ -31,6 +34,7 @@ export default function Home() {
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [, setLocation] = useLocation();
   const { location } = useGlobalLocation();
+  const [isLocationOpen, setIsLocationOpen] = useState(false);
 
   const toggleFilter = (filter: string) => {
     setActiveFilters(prev => {
@@ -64,6 +68,15 @@ export default function Home() {
       items = items.filter(i => Number(i.restaurant?.rating || 0) >= 4.0);
     }
 
+    // Category filtering from quick actions
+    const categoryFilters = activeFilters.filter(f => !FILTERS.includes(f) && f !== "Pure Veg");
+    if (categoryFilters.length > 0) {
+      items = items.filter(i => categoryFilters.some(cf =>
+        i.category?.toLowerCase().includes(cf.toLowerCase()) ||
+        i.cuisineType?.toLowerCase().includes(cf.toLowerCase())
+      ));
+    }
+
     // Prioritize user's requested categories
     const priorityCategories = ["Odia Special", "Sweets", "Biryani"];
 
@@ -86,14 +99,41 @@ export default function Home() {
 
         {/* Welcome Section */}
         <div className="mb-6">
-          {/* Breadcrumbs / Delivering to (Zomato keeps this subtle or relies on navbar) */}
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-8">
-            <span className="text-foreground hover:text-primary transition-colors cursor-pointer">Home</span>
-            <span>/</span>
-            <span className="text-foreground hover:text-primary transition-colors cursor-pointer">{location.city}</span>
-            <span>/</span>
-            <span className="text-muted-foreground">{location.address?.split(',')[0] || location.pinCode}</span>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-wrap items-center gap-4 mb-8"
+          >
+            <Dialog open={isLocationOpen} onOpenChange={setIsLocationOpen}>
+              <DialogTrigger asChild>
+                <div className="flex items-center gap-3 px-5 py-2.5 rounded-[1.25rem] bg-secondary/30 border border-border/50 backdrop-blur-xl shadow-sm hover:border-primary/30 transition-all cursor-pointer group">
+                  <div className="p-1.5 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                    <MapPin className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.15em] leading-none mb-1 font-display">Delivering To</span>
+                    <span className="text-[13px] font-black text-foreground tracking-tight leading-none">
+                      {location.address?.split(',')[0] || location.city}
+                    </span>
+                  </div>
+                </div>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px] rounded-[2rem] border-border/50 p-6 bg-background/95 backdrop-blur-xl">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-black">Change Location</DialogTitle>
+                </DialogHeader>
+                <LocationSelector onClose={() => setIsLocationOpen(false)} />
+              </DialogContent>
+            </Dialog>
+
+            <div className="hidden sm:block h-6 w-px bg-border/50" />
+
+            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/80">
+              <span className="truncate max-w-[300px]">
+                {location.formatted_address || `${location.city}, ${location.pinCode}`}
+              </span>
+            </div>
+          </motion.div>
 
           <motion.h2
             initial={{ opacity: 0, x: -20 }}
@@ -105,15 +145,23 @@ export default function Home() {
           </motion.h2>
         </div>
 
-        {/* Category Inspiration - Scrollable */}
-        <div className="mb-8 md:mb-12 overflow-x-auto touch-pan-x pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <div className="flex gap-4 sm:gap-6 md:gap-8 w-max">
-            {CATEGORIES.map((cat, index) => (
+        {/* Category Inspiration - Auto Scrolling Marquee */}
+        <style>{`
+          @keyframes marquee-scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+        `}</style>
+        <div className="mb-8 md:mb-12 overflow-hidden pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div
+            className="flex gap-4 sm:gap-6 md:gap-8 w-max"
+            style={{ animation: "marquee-scroll 30s linear infinite" }}
+            onMouseEnter={(e) => (e.currentTarget.style.animationPlayState = "paused")}
+            onMouseLeave={(e) => (e.currentTarget.style.animationPlayState = "running")}
+          >
+            {[...CATEGORIES, ...CATEGORIES].map((cat, index) => (
               <motion.button
                 key={`${cat.name}-${index}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setLocation(`/category/${cat.type}`)}
@@ -132,6 +180,38 @@ export default function Home() {
 
         {/* AI Promotion Banner */}
         <AIPromoBanner />
+
+        {/* Quick Category Action Bar */}
+        <div className="mb-8 overflow-x-auto no-scrollbar pb-2 pt-2">
+          <div className="flex items-center gap-3 w-max">
+            {[
+              { label: "Veg Only", value: "Veg", icon: "🌱" },
+              { label: "Biryani", value: "Biryani", icon: "🍛" },
+              { label: "Pizza", value: "Pizza & Italian", icon: "🍕" },
+              { label: "Chicken", value: "Chicken", icon: "🍗" },
+              { label: "Burgers", value: "Burgers", icon: "🍔" },
+              { label: "Cold Drinks", value: "Cold Drinks", icon: "🥤" },
+              { label: "Desserts", value: "Ice Cream", icon: "🍦" },
+              { label: "Sweets", value: "Sweets", icon: "🍰" },
+            ].map((cat) => (
+              <motion.button
+                key={cat.label}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  toggleFilter(cat.label);
+                }}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-border/50 bg-secondary/30 backdrop-blur-md transition-all hover:border-primary/40 group",
+                  activeFilters.includes(cat.label) ? "bg-primary/20 border-primary shadow-[0_0_15px_-5px_rgba(var(--primary),0.3)]" : ""
+                )}
+              >
+                <span className="text-lg group-hover:scale-110 transition-transform">{cat.icon}</span>
+                <span className="text-sm font-black whitespace-nowrap tracking-tight">{cat.label}</span>
+              </motion.button>
+            ))}
+          </div>
+        </div>
 
         {/* Extra Zomato Sections (Top Brands - Mockup representation) */}
         <div className="mb-12">

@@ -40,7 +40,7 @@ export function LocationSelector({ onClose }: { onClose: () => void }) {
             setError(null);
             try {
                 const response = await fetch(
-                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(search)}&addressdetails=1&countrycodes=in&limit=10`,
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(search)}&addressdetails=1&countrycodes=in&limit=10&featuretype=settlement,road`,
                     { headers: { "Accept-Language": "en" } }
                 );
                 const data = await response.json();
@@ -62,19 +62,25 @@ export function LocationSelector({ onClose }: { onClose: () => void }) {
         const timeoutId = setTimeout(async () => {
             setIsSearching(true);
             setError(null);
+            setSuggestions([]); // Clear old results
             try {
+                // Using 'postalcode' combined with 'q=India' for better reliability in Nominatim
                 const response = await fetch(
-                    `https://nominatim.openstreetmap.org/search?format=json&postalcode=${pinSearch}&countrycodes=in&addressdetails=1&limit=10`,
+                    `https://nominatim.openstreetmap.org/search?format=json&postalcode=${pinSearch}&countrycodes=in&addressdetails=1&limit=5`,
                     { headers: { "Accept-Language": "en" } }
                 );
                 const data = await response.json();
+
+                if (data.length === 0) {
+                    setError(`No locations found for PIN code ${pinSearch}`);
+                }
                 setSuggestions(data);
             } catch (err) {
                 setError("Failed to fetch areas for PIN code");
             } finally {
                 setIsSearching(false);
             }
-        }, 300);
+        }, 400);
 
         return () => clearTimeout(timeoutId);
     }, [pinSearch]);

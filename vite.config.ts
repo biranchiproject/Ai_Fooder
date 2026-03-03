@@ -18,6 +18,10 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    proxy: {
+      "/api": "http://localhost:8080",
+      "/auth": "http://localhost:8080",
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],

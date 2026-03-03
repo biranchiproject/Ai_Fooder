@@ -30,7 +30,7 @@ export function MenuItemCard({ item, restaurantId }: { item: MenuItem; restauran
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: 0.6, ease: "easeOut" }}
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
-      className="flex flex-row justify-between gap-3 sm:gap-5 rounded-3xl bg-card p-4 sm:p-5 shadow-sm border border-border/50 hover:shadow-lg transition-shadow items-start sm:items-center"
+      className="flex flex-row justify-between gap-3 sm:gap-5 rounded-3xl bg-card p-4 sm:p-5 pb-8 sm:pb-9 shadow-sm border border-border/50 hover:shadow-lg transition-shadow items-start sm:items-center relative"
     >
       {/* Content */}
       <div className="flex flex-1 flex-col justify-center">

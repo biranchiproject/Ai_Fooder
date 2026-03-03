@@ -22,7 +22,7 @@ import {
   type ItemAffinity,
   type InsertItemAffinity,
 } from "@shared/schema";
-import { eq, ilike, inArray, notInArray, and, ne, desc } from "drizzle-orm";
+import { eq, ilike, inArray, notInArray, and, ne, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   getRestaurants(offset?: number, limit?: number): Promise<Restaurant[]>;
@@ -34,6 +34,18 @@ export interface IStorage {
   getMenuItemsByName(name: string): Promise<MenuItem[]>;
   getRestaurantsByName(name: string): Promise<Restaurant[]>;
   getItemAffinity(itemIds: number[]): Promise<(MenuItem & { restaurant: Restaurant })[]>;
+  getCandidates(params: {
+    city: string;
+    categories?: string[];
+    priceMax?: number;
+    excludeIds?: number[];
+    limit?: number;
+  }): Promise<(MenuItem & { restaurant: Restaurant })[]>;
+  getPopularItems(params: {
+    city: string;
+    limit?: number;
+  }): Promise<(MenuItem & { restaurant: Restaurant })[]>;
+  getRestaurantByOwner(ownerId: number): Promise<Restaurant | undefined>;
 
   createRestaurant(restaurant: InsertRestaurant): Promise<Restaurant>;
   createMenuItem(menuItem: InsertMenuItem): Promise<MenuItem>;
@@ -46,6 +58,8 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, data: Partial<User>): Promise<User>;
+  getMenuItem(id: number): Promise<MenuItem | undefined>;
+  updateRestaurant(id: number, data: Partial<Restaurant>): Promise<Restaurant>;
   deleteMenuItem(id: number): Promise<void>;
   sessionStore: session.Store;
 }
@@ -70,6 +84,17 @@ export class DatabaseStorage implements IStorage {
 
   async getRestaurant(id: number): Promise<Restaurant | undefined> {
     const [res] = await db.select().from(restaurants).where(eq(restaurants.id, id));
+    return res;
+  }
+
+  async getRestaurantByOwner(ownerId: number): Promise<Restaurant | undefined> {
+    const [res] = await db.select().from(restaurants).where(eq(restaurants.ownerId, ownerId));
+    return res;
+  }
+
+  async updateRestaurant(id: number, data: Partial<Restaurant>): Promise<Restaurant> {
+    const [res] = await db.update(restaurants).set(data).where(eq(restaurants.id, id)).returning();
+    if (!res) throw new Error("Restaurant not found");
     return res;
   }
 
@@ -144,6 +169,72 @@ export class DatabaseStorage implements IStorage {
     return results.map((r: any) => ({ ...r.menuItem, restaurant: r.restaurant }));
   }
 
+  async getCandidates(params: {
+    city: string;
+    categories?: string[];
+    priceMax?: number;
+    excludeIds?: number[];
+    limit?: number;
+  }): Promise<(MenuItem & { restaurant: Restaurant })[]> {
+    const { city, categories, priceMax, excludeIds, limit = 250 } = params;
+
+    const conditions = [
+      eq(restaurants.city, city),
+      eq(restaurants.is_open, true),
+    ];
+
+    if (categories && categories.length > 0) {
+      conditions.push(inArray(menuItems.category, categories));
+    }
+
+    if (priceMax) {
+      // price stored in cents, priceMax in rupees
+      conditions.push(sql`${menuItems.price} <= ${priceMax * 100}`);
+    }
+
+    if (excludeIds && excludeIds.length > 0) {
+      conditions.push(notInArray(menuItems.id, excludeIds));
+    }
+
+    const results = await db.select({
+      menuItem: menuItems,
+      restaurant: restaurants,
+    })
+      .from(menuItems)
+      .innerJoin(restaurants, eq(menuItems.restaurantId, restaurants.id))
+      .where(and(...conditions))
+      .limit(limit);
+
+    return results.map((r: any) => ({ ...r.menuItem, restaurant: r.restaurant }));
+  }
+
+  async getPopularItems(params: {
+    city: string;
+    limit?: number;
+  }): Promise<(MenuItem & { restaurant: Restaurant })[]> {
+    const { city, limit = 50 } = params;
+
+    // In a real production system, this would join with the orders table and group by counts.
+    // For this implementation, we use bestsellers and high ratings as proxies for popularity.
+    console.log(`[STORAGE] Querying for city: ${city}, isOpen: true, isBestseller: yes`);
+    const results = await db.select({
+      menuItem: menuItems,
+      restaurant: restaurants,
+    })
+      .from(menuItems)
+      .innerJoin(restaurants, eq(menuItems.restaurantId, restaurants.id))
+      .where(and(
+        eq(restaurants.city, city),
+        eq(restaurants.is_open, true),
+        eq(restaurants.is_bestseller, "yes")
+      ))
+      .limit(limit);
+
+    console.log(`[STORAGE] Query result count: ${results.length}`);
+
+    return results.map((r: any) => ({ ...r.menuItem, restaurant: r.restaurant }));
+  }
+
   async createRestaurant(restaurant: InsertRestaurant): Promise<Restaurant> {
     const [res] = await db.insert(restaurants).values(restaurant).returning();
     return res;
@@ -199,6 +290,11 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db.update(users).set(data).where(eq(users.id, id)).returning();
     if (!user) throw new Error("User not found");
     return user;
+  }
+
+  async getMenuItem(id: number): Promise<MenuItem | undefined> {
+    const [res] = await db.select().from(menuItems).where(eq(menuItems.id, id));
+    return res;
   }
 
   async deleteMenuItem(id: number): Promise<void> {
@@ -285,6 +381,40 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getCandidates(params: {
+    city: string;
+    categories?: string[];
+    priceMax?: number;
+    excludeIds?: number[];
+    limit?: number;
+  }): Promise<(MenuItem & { restaurant: Restaurant })[]> {
+    const { city, categories, priceMax, excludeIds, limit = 250 } = params;
+    return Array.from(this.menuItems.values())
+      .map(item => ({ item, restaurant: this.restaurants.get(item.restaurantId)! }))
+      .filter(({ item, restaurant }) => {
+        if (restaurant.city !== city) return false;
+        if (!restaurant.is_open) return false;
+        if (categories && !categories.includes(item.category)) return false;
+        if (priceMax && item.price > priceMax * 100) return false;
+        if (excludeIds && excludeIds.includes(item.id)) return false;
+        return true;
+      })
+      .slice(0, limit)
+      .map(r => ({ ...r.item, restaurant: r.restaurant }));
+  }
+
+  async getPopularItems(params: {
+    city: string;
+    limit?: number;
+  }): Promise<(MenuItem & { restaurant: Restaurant })[]> {
+    const { city, limit = 50 } = params;
+    return Array.from(this.menuItems.values())
+      .map(item => ({ item, restaurant: this.restaurants.get(item.restaurantId)! }))
+      .filter(({ restaurant }) => restaurant.city === city && restaurant.is_open && restaurant.is_bestseller === "yes")
+      .slice(0, limit)
+      .map(r => ({ ...r.item, restaurant: r.restaurant }));
+  }
+
   async getItemAffinity(itemIds: number[]): Promise<(MenuItem & { restaurant: Restaurant })[]> {
     if (itemIds.length === 0) return [];
 
@@ -308,10 +438,26 @@ export class MemStorage implements IStorage {
     const restaurant: Restaurant = {
       ...insertRestaurant,
       id,
-      is_pure_veg_restaurant: insertRestaurant.is_pure_veg_restaurant ?? false
+      is_pure_veg_restaurant: insertRestaurant.is_pure_veg_restaurant ?? false,
+      city: insertRestaurant.city ?? "Mumbai",
+      is_open: insertRestaurant.is_open ?? true,
+      is_new: insertRestaurant.is_new ?? false,
+      ownerId: insertRestaurant.ownerId ?? null,
     };
     this.restaurants.set(id, restaurant);
     return restaurant;
+  }
+
+  async getRestaurantByOwner(ownerId: number): Promise<Restaurant | undefined> {
+    return Array.from(this.restaurants.values()).find(r => r.ownerId === ownerId);
+  }
+
+  async updateRestaurant(id: number, data: Partial<Restaurant>): Promise<Restaurant> {
+    const res = this.restaurants.get(id);
+    if (!res) throw new Error("Restaurant not found");
+    const updated = { ...res, ...data };
+    this.restaurants.set(id, updated);
+    return updated;
   }
 
   async createMenuItem(insertMenuItem: InsertMenuItem): Promise<MenuItem> {
@@ -320,7 +466,8 @@ export class MemStorage implements IStorage {
       ...insertMenuItem,
       id,
       isPureVeg: insertMenuItem.isPureVeg ?? false,
-      cuisineType: insertMenuItem.cuisineType ?? "Indian"
+      cuisineType: insertMenuItem.cuisineType ?? "Indian",
+      is_new: insertMenuItem.is_new ?? false,
     };
     this.menuItems.set(id, menuItem);
     return menuItem;
@@ -399,6 +546,10 @@ export class MemStorage implements IStorage {
     const updatedUser = { ...user, ...data };
     this.users.set(id, updatedUser);
     return updatedUser;
+  }
+
+  async getMenuItem(id: number): Promise<MenuItem | undefined> {
+    return this.menuItems.get(id);
   }
 
   async deleteMenuItem(id: number): Promise<void> {

@@ -9,6 +9,25 @@ import { LRUCache } from "lru-cache";
 import crypto from "crypto";
 import path from "path";
 import Groq from "groq-sdk";
+import multer from "multer";
+import fs from "fs";
+
+// Configure Multer for local storage
+const storage_multer = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage: storage_multer });
 
 let groq: Groq | null = null;
 function getGroqClient() {
@@ -37,6 +56,30 @@ async function initONNX() {
 }
 initONNX();
 
+function getExperimentGroup(userId: number | undefined): "control" | "ml_variant" {
+  if (!userId) return Math.random() < 0.5 ? "control" : "ml_variant";
+  const hash = crypto.createHash("md5").update(userId.toString()).digest("hex");
+  const bucket = parseInt(hash.substring(0, 8), 16) % 100;
+  return bucket < 50 ? "control" : "ml_variant";
+}
+
+async function trackEventAsync(event: any) {
+  // Fire and forget: process in next tick
+  setImmediate(async () => {
+    try {
+      const { pool } = await import("./db");
+      if (!pool) return;
+      await pool.query(
+        `INSERT INTO recommendation_events (user_id, cart_id, item_id, type, experiment_group, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [event.user_id || null, event.cart_id, event.item_id, event.type, event.experiment_group, new Date().toISOString()]
+      );
+    } catch (e) {
+      console.error("[Async Tracking Error]:", e);
+    }
+  });
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -60,12 +103,36 @@ export async function registerRoutes(
   // ==========================================
   // SuperAdmin & Admin Routes
   // ==========================================
-  app.get("/api/users", requireSuperAdmin, async (req, res) => {
+  app.get("/api/users", requireAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
     } catch (e) {
       res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.post("/api/upload", requireAdmin, upload.single("file"), (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      const filePath = `/uploads/${req.file.filename}`;
+      res.json({ url: filePath });
+    } catch (e) {
+      res.status(500).json({ error: "Failed to upload file" });
+    }
+  });
+
+  app.get("/api/admin/:id/food", requireSuperAdmin, async (req, res) => {
+    try {
+      const adminId = parseInt(req.params.id);
+      const restaurant = await storage.getRestaurantByOwner(adminId);
+      if (!restaurant) return res.json([]);
+      const menu = await storage.getMenuByRestaurant(restaurant.id);
+      res.json(menu.map(item => ({ ...item, restaurant })));
+    } catch (e) {
+      res.status(500).json({ error: "Failed to fetch admin food items" });
     }
   });
 
@@ -89,11 +156,55 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/my-restaurant", requireAdmin, async (req, res) => {
+    try {
+      const restaurant = await storage.getRestaurantByOwner(req.user!.id);
+      res.json(restaurant || null);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to fetch restaurant" });
+    }
+  });
+
+  app.post("/api/my-restaurant", requireAdmin, async (req, res) => {
+    try {
+      const existing = await storage.getRestaurantByOwner(req.user!.id);
+      if (existing) {
+        const updated = await storage.updateRestaurant(existing.id, req.body);
+        return res.json(updated);
+      }
+
+      const restaurant = await storage.createRestaurant({
+        ...req.body,
+        ownerId: req.user!.id,
+        rating: "4.5",
+        delivery_time: "30-40 min",
+        distance: "2.0 km",
+        is_veg: req.body.is_veg || "both",
+        is_pure_veg_restaurant: req.body.is_pure_veg_restaurant || false,
+        is_bestseller: "no",
+        is_open: true,
+        is_new: true,
+      });
+      res.status(201).json(restaurant);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to manage restaurant profile" });
+    }
+  });
+
   app.post("/api/food", requireAdmin, async (req, res) => {
     try {
       let { restaurantId, hotelName, location, name, price, image, category, description, isVeg } = req.body;
 
-      if (!restaurantId && hotelName) {
+      // For admins, force the restaurantId to be their own
+      if (req.user!.role === "admin") {
+        const myRes = await storage.getRestaurantByOwner(req.user!.id);
+        if (!myRes) {
+          return res.status(403).json({ error: "You must create a restaurant profile first" });
+        }
+        restaurantId = myRes.id;
+      }
+
+      if (!restaurantId && hotelName && req.user!.role === "superadmin") {
         const existing = await storage.getRestaurantsByName(hotelName);
         if (existing.length > 0) {
           restaurantId = existing[0].id;
@@ -138,6 +249,13 @@ export async function registerRoutes(
 
   app.get("/api/food", async (req, res) => {
     try {
+      if (req.isAuthenticated() && req.user!.role === "admin") {
+        const myRes = await storage.getRestaurantByOwner(req.user!.id);
+        if (!myRes) return res.json([]);
+        const menu = await storage.getMenuByRestaurant(myRes.id);
+        // Map to include restaurant info for consistency
+        return res.json(menu.map(item => ({ ...item, restaurant: myRes })));
+      }
       const allFood = await storage.getAllMenuItemsWithRestaurants();
       res.json(allFood);
     } catch (e) {
@@ -148,6 +266,15 @@ export async function registerRoutes(
   app.delete("/api/food/:id", requireAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+
+      if (req.user!.role === "admin") {
+        const myRes = await storage.getRestaurantByOwner(req.user!.id);
+        const item = await storage.getMenuItem(id);
+        if (!myRes || !item || item.restaurantId !== myRes.id) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+      }
+
       await storage.deleteMenuItem(id);
       res.sendStatus(200);
     } catch (e) {
@@ -336,94 +463,239 @@ Return JSON structure:
   });
 
   // ==========================================
-  // Production-Ready CSAO (Cart Super Add-On) Engine
+  // Search API
   // ==========================================
+  app.get("/api/search", async (req, res) => {
+    try {
+      const q = (req.query.q as string || "").trim();
+      if (q.length < 2) {
+        return res.json({ items: [], restaurants: [] });
+      }
+
+      const [items, rests] = await Promise.all([
+        storage.getMenuItemsByName(q),
+        storage.getRestaurantsByName(q),
+      ]);
+
+      res.json({
+        items: items.slice(0, 8),
+        restaurants: rests.slice(0, 5),
+      });
+    } catch (e) {
+      console.error("[Search Error]:", e);
+      res.status(500).json({ error: "Search failed" });
+    }
+  });
+
+  // ==========================================
+  // Production-Ready CSAO (Cart Super Add-On) Engine
+  // Context-Aware, Real-Time, ML-Powered
+  // ==========================================
+
+  // Category encoding map (must match LabelEncoder from training)
+  const CATEGORY_ENCODING: Record<string, number> = {
+    "Biryani": 0, "Biryani Special": 0,
+    "Burgers & Cafe": 1,
+    "Chinese": 2,
+    "Cold Drinks": 3,
+    "Fast Food": 4,
+    "Ice Cream": 5,
+    "North Indian": 6,
+    "Odia Special": 7,
+    "Pizza & Italian": 8,
+    "South Indian": 9,
+    "Sweets": 10,
+    "Beverages": 11,
+  };
+
+  // Meal-completion chains: ordered progression of complementary items
+  const MEAL_CHAINS: Record<string, string[]> = {
+    "Biryani": ["North Indian", "Sweets", "Cold Drinks", "Ice Cream"],
+    "North Indian": ["Sweets", "Cold Drinks", "Ice Cream"],
+    "South Indian": ["Beverages", "Sweets", "Ice Cream"],
+    "Chinese": ["Cold Drinks", "Ice Cream", "Sweets"],
+    "Fast Food": ["Cold Drinks", "Ice Cream"],
+    "Pizza & Italian": ["Cold Drinks", "Ice Cream", "Sweets"],
+    "Odia Special": ["Cold Drinks", "Sweets", "Ice Cream"],
+    "Sweets": ["Ice Cream", "Beverages", "Cold Drinks"],
+    "Ice Cream": ["Cold Drinks", "Beverages"],
+    "Cold Drinks": ["Ice Cream", "Sweets"],
+    "Beverages": ["Sweets", "Ice Cream"],
+  };
+
+  // Time-of-day category boosts
+  const TIME_BOOSTS: Record<string, string[]> = {
+    morning: ["South Indian", "Beverages", "Sweets"],        // 6-11
+    afternoon: ["Biryani", "North Indian", "Cold Drinks"],      // 12-16
+    evening: ["Fast Food", "Chinese", "Cold Drinks"],         // 17-20
+    night: ["Ice Cream", "Sweets", "Cold Drinks"],          // 21-5
+  };
+
+  function getTimeSlot(hour: number): string {
+    if (hour >= 6 && hour <= 11) return "morning";
+    if (hour >= 12 && hour <= 16) return "afternoon";
+    if (hour >= 17 && hour <= 20) return "evening";
+    return "night";
+  }
+
   app.post("/api/recommendations", async (req, res) => {
     try {
       const start = Date.now();
-      const { cart_item_ids } = req.body;
+      const { cart_item_ids, user_id, hour_of_day, day_of_week } = req.body;
 
       if (!Array.isArray(cart_item_ids)) {
         return res.status(400).json({ error: "cart_item_ids must be an array" });
       }
 
-      const itemIds = cart_item_ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+      const itemIds = cart_item_ids.map((id: any) => parseInt(id, 10)).filter((id: number) => !isNaN(id));
+      const hour = typeof hour_of_day === "number" ? hour_of_day : new Date().getHours();
+      const dow = typeof day_of_week === "number" ? day_of_week : new Date().getDay();
 
-      // 1. Fetch Item-to-Item Affinity Recommendations
-      let recommendedItems = await storage.getItemAffinity(itemIds);
+      // 0. A/B Testing & Context
+      const experimentGroup = getExperimentGroup(user_id);
+      let city = "Mumbai";
+      if (user_id) {
+        const user = await storage.getUser(user_id);
+        if (user?.address?.includes("Mumbai")) city = "Mumbai";
+        else if (user?.address?.includes("Delhi")) city = "Delhi";
+        // ... extend city detection logic
+      }
 
-      // 2. Guarantee Variety: Category-based Smart Mapping (Ice Cream, Cold Drinks)
-      const fallbackItems = await getFallbackRecommendations(itemIds);
-      const existingIds = new Set(recommendedItems.map(i => i.id));
+      // Smart cache key includes city and experiment group
+      const cacheKey = crypto.createHash("md5")
+        .update(JSON.stringify({ ids: itemIds.sort(), city, hour: Math.floor(hour / 4), dow, experimentGroup }))
+        .digest("hex");
 
-      // Inject fallback items interleaved with primary affinities
-      let finalItems = [];
-      let i = 0; let j = 0;
-      while (finalItems.length < 8 && (i < recommendedItems.length || j < fallbackItems.length)) {
-        if (i < recommendedItems.length) {
-          finalItems.push(recommendedItems[i]);
-          existingIds.add(recommendedItems[i].id);
-          i++;
+      const cached = recsCache.get(cacheKey);
+      if (cached) {
+        const latency = Date.now() - start;
+        return res.status(200).json({ ...cached, latency_ms: latency, cached: true });
+      }
+
+      // 1. Candidate Retrieval (Stage 1)
+      let candidates: (any & { restaurant: any })[] = [];
+      const timeSlot = getTimeSlot(hour);
+
+      if (itemIds.length > 0) {
+        const cartItemsFull = await Promise.all(itemIds.map(id => storage.getAllMenuItemsWithRestaurants().then(all => all.find(i => i.id === id))));
+        const cartCategoryList = Array.from(new Set(cartItemsFull.filter(Boolean).map(i => i!.category)));
+        const cartValue = cartItemsFull.filter(Boolean).reduce((sum, i) => sum + i!.price, 0);
+
+        // Fetch candidates based on meal-chain affinity + city
+        const targetCategories = new Set<string>();
+        cartCategoryList.forEach(cat => (MEAL_CHAINS[cat] || []).forEach(tc => targetCategories.add(tc)));
+
+        candidates = await storage.getCandidates({
+          city,
+          categories: Array.from(targetCategories),
+          priceMax: (cartValue / 100) * 0.5 + 200, // Dynamic price band
+          excludeIds: itemIds,
+          limit: 200
+        });
+
+        // Cold Start Fallback for new carts or low candidate yield
+        if (candidates.length < 20) {
+          const fallback = await storage.getPopularItems({ city, limit: 50 });
+          candidates = [...candidates, ...fallback.filter(f => !itemIds.includes(f.id))];
         }
-        if (j < fallbackItems.length && finalItems.length < 8) {
-          const fbItem = fallbackItems[j];
-          if (!existingIds.has(fbItem.id) && !itemIds.includes(fbItem.id)) {
-            finalItems.push(fbItem);
-            existingIds.add(fbItem.id);
-          }
-          j++;
+      } else {
+        // Cold Start: Empty Cart / New User
+        candidates = await storage.getPopularItems({ city, limit: 100 });
+      }
+
+      const cartCategories = new Set(itemIds.map(id => candidates.find(c => c.id === id)?.category).filter(Boolean));
+      const cartValue = (itemIds.length > 0) ? 1000 : 0; // Simplified for candidates scoring logic if cartItemsFull not available
+
+      // 2. Ranking (Stage 2)
+      let scoredItems: { item: any; score: number }[] = [];
+
+      if (experimentGroup === "ml_variant" && onnxSession && candidates.length > 0) {
+        try {
+          const featureVectors: number[][] = candidates.map(item => [
+            item.id,
+            CATEGORY_ENCODING[item.category] ?? 6,
+            (item.price || 0) / 100,
+            itemIds.length,
+            0, // Cart value placeholder if not fully calculated
+            hour,
+            dow
+          ]);
+
+          const flatFeatures = new Float32Array(featureVectors.flat());
+          const inputTensor = new ort.Tensor("float32", flatFeatures, [candidates.length, 7]);
+          const feeds: Record<string, ort.Tensor> = { [onnxSession.inputNames[0]]: inputTensor };
+          const results = await onnxSession.run(feeds);
+          const outputData = results[onnxSession.outputNames[0]].data as Float32Array;
+
+          scoredItems = candidates.map((item, idx) => ({ item, score: outputData[idx] || 0 }));
+        } catch (e) {
+          console.error("[CSAO ML Error] Falling back to heuristics:", e);
         }
       }
-      recommendedItems = finalItems;
+
+      if (scoredItems.length === 0) {
+        scoredItems = candidates.map(item => ({ item, score: 0.1 }));
+      }
+
+      // Hybrid boosts (Meal-chains, Time, Affinity)
+      const affinityItems = await storage.getItemAffinity(itemIds);
+      const affinityIds = new Set(affinityItems.map(a => a.id));
+      const timeBoosted = new Set(TIME_BOOSTS[timeSlot] || []);
+
+      for (const entry of scoredItems) {
+        const cat = entry.item.category;
+        if (affinityIds.has(entry.item.id)) entry.score += 0.4;
+        if (timeBoosted.has(cat)) entry.score += 0.2;
+
+        // Epsilon-Greedy Exploration (5%)
+        if (Math.random() < 0.05) {
+          entry.score += Math.random() * 0.5; // Mild exploration boost
+        }
+      }
+
+      scoredItems.sort((a, b) => b.score - a.score);
+      const topItems = scoredItems.slice(0, 8).map(e => ({ ...e.item, score: e.score.toFixed(4) }));
 
       const latency = Date.now() - start;
-      console.log(`[CSAO] Recommendation Latency: ${latency}ms`);
+      console.log(`[CSAO] Latency: ${latency}ms | Candidates: ${candidates.length} | Group: ${experimentGroup} | Top: ${topItems.length}`);
 
-      res.status(200).json({
-        experiment_group: "affinity_system",
+      const result = {
+        experiment_group: experimentGroup,
         latency_ms: latency,
-        items: recommendedItems.slice(0, 8)
-      });
+        candidate_count: candidates.length,
+        items: topItems,
+        context: { city, time_slot: timeSlot }
+      };
+
+      recsCache.set(cacheKey, result);
+      res.status(200).json(result);
     } catch (e) {
       console.error("[CSAO API Error]:", e);
       res.status(500).json({ error: "Internal server error" });
     }
   });
 
-  async function getFallbackRecommendations(cartItemIds: number[]) {
-    // Get all items with restaurants to ensure type matching
-    const allItems = await storage.getAllMenuItemsWithRestaurants();
+  // Get user's most-ordered categories from order history
+  async function getUserPreferredCategories(userId: number): Promise<string[]> {
+    try {
+      const { pool } = await import("./db");
+      if (!pool) return [];
 
-    if (cartItemIds.length === 0) {
-      return allItems.slice(0, 8).map(item => ({ ...item, score: 0.5 }));
+      const result = await pool.query(
+        `SELECT mi.category, COUNT(*) as cnt
+         FROM orders o
+         JOIN order_items oi ON oi.order_id = o.id
+         JOIN menu_items mi ON mi.id = oi.item_id
+         WHERE o.user_id = $1
+         GROUP BY mi.category
+         ORDER BY cnt DESC
+         LIMIT 5`,
+        [userId]
+      );
+      return result.rows.map((r: any) => r.category);
+    } catch {
+      return [];
     }
-
-    const cartItems = cartItemIds.map(id => allItems.find(i => i.id === id)).filter(Boolean);
-    const categories = Array.from(new Set(cartItems.map(i => i!.category)));
-
-    const categoryMapping: Record<string, string[]> = {
-      "South Indian": ["Beverages", "Sweets", "Ice Cream"],
-      "Biryani": ["Cold Drinks", "Sweets", "North Indian"],
-      "Chinese": ["Cold Drinks", "Ice Cream"],
-      "Sweets": ["Ice Cream", "Beverages"],
-      "North Indian": ["Sweets", "Cold Drinks", "Ice Cream"],
-      "Odia Special": ["Cold Drinks", "Ice Cream", "Sweets"],
-      "Fast Food": ["Cold Drinks", "Ice Cream"],
-    };
-
-    const targetCategories = new Set<string>(categories);
-    categories.forEach(cat => {
-      if (categoryMapping[cat]) {
-        categoryMapping[cat].forEach(c => targetCategories.add(c));
-      }
-    });
-
-    // Find items in mapped complementary categories but not in cart
-    return allItems
-      .filter(item => targetCategories.has(item.category) && !cartItemIds.includes(item.id))
-      .sort((a, b) => Number(b.restaurant.rating) - Number(a.restaurant.rating))
-      .slice(0, 8)
-      .map(item => ({ ...item, score: 0.3 }));
   }
 
 
@@ -431,29 +703,15 @@ Return JSON structure:
   // Telemetry Event Tracking
   // ==========================================
   app.post("/api/track", async (req, res) => {
-    try {
-      const { pool } = await import("./db");
-      if (!pool) return res.status(503).json({ error: "No DB" });
-
-      const { user_id, cart_id, item_id, type, experiment_group } = req.body;
-
-      if (!cart_id || !item_id || !type || !experiment_group) {
-        return res.status(400).json({ error: "Missing required tracking fields" });
-      }
-
-      console.log("Tracking Insert:", { experimentGroup: experiment_group, type });
-
-      await pool.query(
-        `INSERT INTO recommendation_events (user_id, cart_id, item_id, type, experiment_group, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [user_id || null, cart_id, item_id, type, experiment_group, new Date().toISOString()]
-      );
-
-      res.status(200).json({ success: true });
-    } catch (e) {
-      console.error("[Telemetry Error]:", e);
-      res.status(500).json({ error: "Tracking failed" });
+    const { user_id, cart_id, item_id, type, experiment_group } = req.body;
+    if (!cart_id || !item_id || !type || !experiment_group) {
+      return res.status(400).json({ error: "Missing required tracking fields" });
     }
+
+    // Fire and forget for low latency client response
+    trackEventAsync(req.body);
+
+    res.status(200).json({ success: true, queued: true });
   });
 
   // ==========================================
@@ -554,17 +812,11 @@ Return JSON structure:
         winner,
         ctr_uplift_percent,
         attach_rate_uplift_percent,
-        ml_variant: {
-          clicks: stats.ml_variant.clicks,
-          add_to_cart: stats.ml_variant.add_to_cart,
-          ctr: stats.ml_variant.ctr,
-          attach_rate: stats.ml_variant.attach_rate
-        },
-        control: {
-          clicks: stats.control.clicks,
-          add_to_cart: stats.control.add_to_cart,
-          ctr: stats.control.ctr,
-          attach_rate: stats.control.attach_rate
+        ml_variant: stats.ml_variant,
+        control: stats.control,
+        meta: {
+          timestamp: new Date().toISOString(),
+          two_stage_enabled: true
         }
       });
     } catch (e) {
@@ -580,6 +832,16 @@ Return JSON structure:
   } else {
     console.log(`[API] DB already populated. Skipping heavy seed data to save memory.`);
   }
+
+  app.patch("/api/user", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const updatedUser = await storage.updateUser(req.user.id, req.body);
+      res.json(updatedUser);
+    } catch (e: any) {
+      res.status(400).json({ message: e.message });
+    }
+  });
 
   return httpServer;
 }
@@ -631,11 +893,14 @@ export async function seedData() {
       delivery_time: r.deliveryTime,
       cuisine: r.category,
       price_range: "₹₹",
-      location: "Cuttack, Odisha",
+      location: r.city || "Mumbai",
+      city: r.city || "Mumbai",
       distance: "2.5 km",
       is_veg: r.category === "Sweets" || r.category === "Odia Special" || r.category === "Ice Cream" || r.category === "Cold Drinks" ? "veg" : "both",
       is_pure_veg_restaurant: r.category === "Sweets" || r.category === "Odia Special" || r.category === "Ice Cream" || r.category === "Cold Drinks",
       is_bestseller: Number(r.rating) >= 4.7 ? "yes" : "no",
+      is_open: true,
+      is_new: Math.random() < 0.2, // Simulate some new restaurants
     });
 
     for (const foodId of r.menu) {
@@ -652,7 +917,8 @@ export async function seedData() {
         isVeg: item.isVeg,
         isPureVeg: item.isVeg && (item.category === "Sweets" || item.cuisine === "Odia"),
         type: item.category.toLowerCase().replace(/ /g, '-'),
-        cuisineType: item.cuisine
+        cuisineType: item.cuisine,
+        is_new: Math.random() < 0.1
       });
     }
   }

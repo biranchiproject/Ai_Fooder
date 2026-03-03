@@ -12,6 +12,7 @@ import RestaurantDetail from "@/pages/RestaurantDetail";
 import Cart from "@/pages/Cart";
 import AuthPage from "@/pages/AuthPage";
 import CompleteProfile from "@/pages/CompleteProfile";
+import Profile from "@/pages/Profile";
 import CategoryPage from "@/pages/CategoryPage";
 import Orders from "@/pages/Orders";
 import SuperAdminDashboard from "@/pages/SuperAdminDashboard";
@@ -55,6 +56,9 @@ function Router() {
         <Route path="/auth" component={AuthPage} />
         <Route path="/complete-profile">
           {(params) => <ProtectedRoute component={CompleteProfile} path="/complete-profile" />}
+        </Route>
+        <Route path="/profile">
+          {(params) => <ProtectedRoute component={Profile} path="/profile" />}
         </Route>
         <Route path="/" component={Home} />
         <Route path="/restaurant/:id" component={RestaurantDetail} />

@@ -52,25 +52,38 @@ export function SmartSuggestions({ cartItemIds, restaurantId }: SmartSuggestions
             setError(null);
 
             try {
+                const now = new Date();
                 const response = await fetch("/api/recommendations", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({ cart_item_ids: cartItemIds }),
+                    body: JSON.stringify({
+                        cart_item_ids: cartItemIds,
+                        hour_of_day: now.getHours(),
+                        day_of_week: now.getDay(),
+                    }),
                 });
 
                 if (!response.ok) {
                     throw new Error("Failed to fetch recommendations");
                 }
 
-                const data: Recommendation[] = await response.json();
+                const result = await response.json();
+                // API returns { items: [...], experiment_group: "..." }
+                const data: Recommendation[] = result.items || result;
 
                 if (isMounted) {
                     if (data && data.length > 0) {
-                        setSuggestions(data);
-                        setCurrentIndex(0);
-                        setIsVisible(true);
+                        // Filter out items already in cart
+                        const filtered = data.filter((r: any) => !cartItemIds.includes(r.id));
+                        if (filtered.length > 0) {
+                            setSuggestions(filtered);
+                            setCurrentIndex(0);
+                            setIsVisible(true);
+                        } else {
+                            setIsVisible(false);
+                        }
                     } else {
                         setIsVisible(false);
                     }

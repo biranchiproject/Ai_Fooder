@@ -11,10 +11,14 @@ export const restaurants = pgTable("restaurants", {
   cuisine: text("cuisine").notNull(),
   price_range: text("price_range").notNull(),
   location: text("location").notNull(),
+  city: text("city").default("Mumbai").notNull(),
   distance: text("distance").notNull(),
   is_veg: text("is_veg").notNull(), // "veg", "non-veg", or "both"
   is_pure_veg_restaurant: boolean("is_pure_veg_restaurant").default(false).notNull(),
   is_bestseller: text("is_bestseller").notNull(), // "yes" or "no"
+  is_open: boolean("is_open").default(true).notNull(),
+  is_new: boolean("is_new").default(false).notNull(),
+  ownerId: integer("owner_id"),
 });
 
 export const menuItems = pgTable("menu_items", {
@@ -29,6 +33,7 @@ export const menuItems = pgTable("menu_items", {
   isPureVeg: boolean("is_pure_veg").default(false).notNull(),
   type: text("type").notNull(), // "biryani", "pizza", "burger", etc.
   cuisineType: text("cuisine_type").default("Indian").notNull(),
+  is_new: boolean("is_new").default(false).notNull(),
 });
 
 export const recommendations = pgTable("recommendations", {

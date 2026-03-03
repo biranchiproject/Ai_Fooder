@@ -15,14 +15,14 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Cart() {
   const { items, totalItems, subtotal, addToCart, decrementQuantity, clearCart } = useCart();
-  const { data: recommendations } = useRecommendations(items.map(i => i.id));
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const { data: recommendations } = useRecommendations(items.map(i => i.id), user?.id);
   const { location } = useGlobalLocation();
   const [, setPathLocation] = useLocation();
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const restaurantId = items[0]?.restaurantId;
   const { data: restaurant } = useRestaurant(restaurantId as number);
-  const { user } = useAuth();
-  const { toast } = useToast();
 
   useEffect(() => {
     if (recommendations?.items && recommendations.items.length > 0) {

@@ -14,10 +14,11 @@ export interface RestaurantData {
     id: number;
     name: string;
     category: string;
-    cuisine?: string; // Optional for now to fix lint errors
+    cuisine?: string;
     rating: string;
     deliveryTime: string;
     image: string;
+    city?: string;
     menu: number[]; // array of food ids
 }
 
@@ -131,6 +132,7 @@ export const foodData: FoodItem[] = [
     { id: 88, name: "7UP", category: "Cold Drinks", cuisine: "Cold Drinks", price: 40, rating: "4.7", isVeg: true, image: "/assets/food/cold-drinks/7up.png", description: "Natural lemon and lime flavored drink with no caffeine." },
     { id: 89, name: "Mirinda", category: "Cold Drinks", cuisine: "Cold Drinks", price: 40, rating: "4.5", isVeg: true, image: "/assets/food/cold-drinks/mirinda.png", description: "Sweet and fruity orange carbonated drink." },
     { id: 90, name: "Appy Fizz", category: "Cold Drinks", cuisine: "Cold Drinks", price: 30, rating: "4.8", isVeg: true, image: "/assets/food/cold-drinks/appy-fizz.png", description: "Bubbly apple juice based sparkling drink." },
+
     // Ice Cream
     { id: 91, name: "Vanilla Ice Cream", category: "Ice Cream", cuisine: "Dessert", price: 80, rating: "4.7", isVeg: true, image: "/assets/food/ice-cream/vanilla-ice-cream.png", description: "Classic creamy vanilla bean ice cream." },
     { id: 92, name: "Chocolate Ice Cream", category: "Ice Cream", cuisine: "Dessert", price: 100, rating: "4.9", isVeg: true, image: "/assets/food/ice-cream/chocolate-ice-cream.png", description: "Rich and decadent Belgian chocolate ice cream." },
@@ -142,6 +144,7 @@ export const foodData: FoodItem[] = [
     { id: 98, name: "Kesar Pista Ice Cream", category: "Ice Cream", cuisine: "Dessert", price: 130, rating: "4.9", isVeg: true, image: "/assets/food/ice-cream/kesar-pista-ice-cream.png", description: "Traditional Indian saffron and pistachio nut ice cream." },
     { id: 99, name: "Oreo Ice Cream", category: "Ice Cream", cuisine: "Dessert", price: 140, rating: "4.8", isVeg: true, image: "/assets/food/ice-cream/oreo-ice-cream.png", description: "Cookies and cream style dessert with Oreo bits." },
     { id: 100, name: "Tutti Frutti Ice Cream", category: "Ice Cream", cuisine: "Dessert", price: 85, rating: "4.6", isVeg: true, image: "/assets/food/ice-cream/tutti-frutti-ice-cream.png", description: "Assorted candied fruit bits in a colorful creamy base." },
+
 ];
 
 export const restaurantData: RestaurantData[] = [
@@ -170,79 +173,8 @@ export const restaurantData: RestaurantData[] = [
         rating: "4.8",
         deliveryTime: "35-45 mins",
         image: `https://images.unsplash.com/featured/600x400/?${encodeURIComponent("North Indian restaurant")}`,
+        city: "Delhi",
         menu: [11, 12, 13, 14, 15, 32]
-    },
-    {
-        id: 4,
-        name: "Dakshin Delight",
-        category: "South Indian",
-        rating: "4.6",
-        deliveryTime: "20-30 mins",
-        image: `https://images.unsplash.com/featured/600x400/?${encodeURIComponent("South Indian restaurant")}`,
-        menu: [16, 17, 18, 19, 20, 33]
-    },
-    {
-        id: 5,
-        name: "Dragon Wok",
-        category: "Chinese",
-        rating: "4.5",
-        deliveryTime: "30-40 mins",
-        image: `https://images.unsplash.com/featured/600x400/?${encodeURIComponent("Chinese restaurant")}`,
-        menu: [21, 22, 23, 24, 25, 34]
-    },
-    {
-        id: 6,
-        name: "Sweet Tooth Hub",
-        category: "Sweets",
-        rating: "4.9",
-        deliveryTime: "15-25 mins",
-        image: `https://images.unsplash.com/featured/600x400/?${encodeURIComponent("Sweets restaurant")}`,
-        menu: [26, 27, 28, 29, 30]
-    },
-    {
-        id: 7,
-        name: "Burger King",
-        category: "Fast Food",
-        rating: "4.4",
-        deliveryTime: "20-30 mins",
-        image: `https://images.unsplash.com/featured/600x400/?${encodeURIComponent("Fast Food restaurant")}`,
-        menu: [36, 37, 38, 39, 40, 34]
-    },
-    {
-        id: 8,
-        name: "The Beverage Bar",
-        category: "Beverages",
-        rating: "4.6",
-        deliveryTime: "15-20 mins",
-        image: `https://images.unsplash.com/featured/600x400/?${encodeURIComponent("Beverages restaurant")}`,
-        menu: [31, 32, 33, 34, 35]
-    },
-    {
-        id: 9,
-        name: "Odisha Flavors",
-        category: "Odia Special",
-        rating: "4.8",
-        deliveryTime: "25-35 mins",
-        image: `https://images.unsplash.com/featured/600x400/?${encodeURIComponent("Odia Special restaurant")}`,
-        menu: [1, 2, 4, 26, 35]
-    },
-    {
-        id: 10,
-        name: "Grand Biryani Darbar",
-        category: "Biryani",
-        rating: "4.6",
-        deliveryTime: "30-40 mins",
-        image: `https://images.unsplash.com/featured/600x400/?${encodeURIComponent("Biryani restaurant")}`,
-        menu: [6, 8, 10, 31]
-    },
-    {
-        id: 11,
-        name: "Tandoori Nights",
-        category: "North Indian",
-        rating: "4.7",
-        deliveryTime: "40-50 mins",
-        image: `https://images.unsplash.com/featured/600x400/?${encodeURIComponent("North Indian restaurant")}`,
-        menu: [11, 13, 14, 32]
     },
     {
         id: 12,
