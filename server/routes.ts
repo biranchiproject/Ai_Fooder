@@ -102,6 +102,97 @@ async function runMigrations() {
 }
 runMigrations();
 
+// ============================================================
+// Image Path Fix Migration
+// DB was seeded before data.ts image paths were corrected.
+// This updates all affected menu items in-place at startup.
+// ============================================================
+async function fixImagePaths() {
+  try {
+    const { pool } = await import("./db");
+    if (!pool) return;
+
+    // Map of exact item name → correct local image path
+    const IMAGE_FIXES: Record<string, string> = {
+      // Sweets - Odia
+      "Rasagola": "/assets/food/sweets/rasagola.png",
+      "Chhena Poda": "/assets/food/sweets/chhena-poda.png",
+      "Chhena Jhili": "/assets/food/sweets/chhena-jhili.png",
+      "Rasabali": "/assets/food/sweets/rasabali.png",
+      "Khaja": "/assets/food/sweets/khaja.png",
+      "Arisa Pitha": "/assets/food/sweets/arisa-pitha.png",
+      "Manda Pitha": "/assets/food/sweets/manda-pitha.png",
+      "Kakara Pitha": "/assets/food/sweets/kakara-pitha.png",
+      "Malpua": "/assets/food/sweets/malpua.png",
+      "Rabdi": "/assets/food/sweets/rabdi.png",
+      // Biryani
+      "Hyderabadi Chicken Biryani": "/assets/food/biryani/hyderabadi.png",
+      "Lucknowi (Awadhi) Biryani": "/assets/food/biryani/lucknowi.png",
+      "Kolkata Biryani": "/assets/food/biryani/kolkata.png",
+      "Malabar Biryani": "/assets/food/biryani/malabar.png",
+      "Thalassery Biryani": "/assets/food/biryani/thalassery.png",
+      "Dindigul Biryani": "/assets/food/biryani/hyderabadi.png",
+      "Sindhi Biryani": "/assets/food/biryani/bombay.png",
+      "Bombay Biryani": "/assets/food/biryani/bombay.png",
+      "Ambur Biryani": "/assets/food/biryani/ambur.png",
+      "Bhatkali Biryani": "/assets/food/biryani/hyderabadi.png",
+      // Cold Drinks
+      "Coca Cola": "/assets/food/cold-drinks/coca-cola.png",
+      "Pepsi": "/assets/food/cold-drinks/pepsi.png",
+      "Sprite": "/assets/food/cold-drinks/sprite.png",
+      "Thums Up": "/assets/food/cold-drinks/thums-up.png",
+      "Fanta": "/assets/food/cold-drinks/fanta.png",
+      "Mountain Dew": "/assets/food/cold-drinks/mountain-dew.png",
+      "Limca": "/assets/food/cold-drinks/limca.png",
+      "7UP": "/assets/food/cold-drinks/7up.png",
+      "Mirinda": "/assets/food/cold-drinks/mirinda.png",
+      "Appy Fizz": "/assets/food/cold-drinks/appy-fizz.png",
+      // Ice Cream
+      "Vanilla Ice Cream": "/assets/food/ice-cream/vanilla-ice-cream.png",
+      "Chocolate Ice Cream": "/assets/food/ice-cream/chocolate-ice-cream.png",
+      "Strawberry Ice Cream": "/assets/food/ice-cream/strawberry-ice-cream.png",
+      "Butterscotch Ice Cream": "/assets/food/ice-cream/butterscotch-ice-cream.png",
+      "Black Currant Ice Cream": "/assets/food/ice-cream/black-currant-ice-cream.png",
+      "Mango Ice Cream": "/assets/food/ice-cream/mango-ice-cream.png",
+      "Chocolate Chip Ice Cream": "/assets/food/ice-cream/chocolate-chip-ice-cream.png",
+      "Kesar Pista Ice Cream": "/assets/food/ice-cream/kesar-pista-ice-cream.png",
+      "Oreo Ice Cream": "/assets/food/ice-cream/oreo-ice-cream.png",
+      "Tutti Frutti Ice Cream": "/assets/food/ice-cream/tutti-frutti-ice-cream.png",
+      // Odia Special
+      "Chakuli & Matar Curry": "/assets/food/odia-special/chakuli.png",
+      "Pakhala Bhata & Sabji": "/assets/food/odia-special/pakhala.png",
+      "Macha Curry": "/assets/food/odia-special/macha.png",
+      "Chugudi Tarkari": "/assets/food/odia-special/chugudi.png",
+      "Sujji Haluwa": "/assets/food/odia-special/haluwa.png",
+      "Chicken Biryani": "/assets/food/odia-special/chicken-biryani.png",
+      "Mutton Biryani": "/assets/food/odia-special/mutton-biryani.png",
+      "Handi Biryani": "/assets/food/odia-special/handi-biryani.png",
+      "Chicken Tandoori": "/assets/food/odia-special/tandoori.png",
+      "Chicken Kebab": "/assets/food/odia-special/kebab.png",
+    };
+
+
+    let fixedCount = 0;
+    for (const [name, correctPath] of Object.entries(IMAGE_FIXES)) {
+      const result = await pool.query(
+        `UPDATE menu_items SET image = $1 WHERE name = $2 AND image != $1`,
+        [correctPath, name]
+      );
+      fixedCount += result.rowCount || 0;
+    }
+
+    if (fixedCount > 0) {
+      console.log(`[IMAGE FIX] ✅ Updated ${fixedCount} menu item image paths to correct local assets.`);
+    } else {
+      console.log(`[IMAGE FIX] ✅ All menu item image paths are already correct.`);
+    }
+  } catch (e: any) {
+    console.warn("[IMAGE FIX] ⚠️ Could not fix image paths:", e.message);
+  }
+}
+fixImagePaths();
+
+
 function getExperimentGroup(userId: number | undefined): "control" | "ml_variant" {
   if (!userId) return Math.random() < 0.5 ? "control" : "ml_variant";
   const hash = crypto.createHash("md5").update(userId.toString()).digest("hex");
