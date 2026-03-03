@@ -45,13 +45,38 @@ const recsCache = new LRUCache<string, any>({
 });
 
 let onnxSession: ort.InferenceSession | null = null;
+let onnxLoadFailed = false;
+const ONNX_MIN_SIZE_BYTES = 50_000; // 50KB minimum to detect failed exports
+
 async function initONNX() {
+  const modelPath = path.join(process.cwd(), "server", "model.onnx");
+
+  // === PHASE 5: STARTUP VALIDATION — FAIL FAST IF MODEL IS INVALID ===
   try {
-    const modelPath = path.join(process.cwd(), "server", "model.onnx");
+    const { statSync } = await import("fs");
+    const stat = statSync(modelPath);
+    const fileSizeBytes = stat.size;
+    const fileSizeKB = (fileSizeBytes / 1024).toFixed(1);
+
+    if (fileSizeBytes < ONNX_MIN_SIZE_BYTES) {
+      console.error(`[ONNX STARTUP] ❌ CRITICAL: model.onnx is only ${fileSizeKB} KB (< 50KB threshold).`);
+      console.error(`[ONNX STARTUP] This indicates a failed export. ML variant will NOT be served.`);
+      console.error(`[ONNX STARTUP] Run: cd ml && python train_ranker.py to regenerate.`);
+      onnxLoadFailed = true;
+      return;
+    }
+
+    console.log(`[ONNX STARTUP] File found: ${modelPath} | Size: ${fileSizeKB} KB`);
     onnxSession = await ort.InferenceSession.create(modelPath);
-    console.log("[ML] Successfully loaded LightGBM ONNX model.");
-  } catch (e) {
-    console.error("[ML Error] Failed to load ONNX model. Falling back to SQL:", e);
+    console.log(`[ONNX STARTUP] ✅ ONNX model loaded successfully | Size: ${fileSizeKB} KB | Inputs: ${onnxSession.inputNames} | Outputs: ${onnxSession.outputNames}`);
+  } catch (e: any) {
+    if (e.code === 'ENOENT') {
+      console.error(`[ONNX STARTUP] ❌ model.onnx NOT FOUND at: ${modelPath}`);
+      console.error(`[ONNX STARTUP] Run: cd ml && python train_ranker.py to generate.`);
+    } else {
+      console.error("[ONNX STARTUP] ❌ Failed to load ONNX model:", e.message);
+    }
+    onnxLoadFailed = true;
   }
 }
 initONNX();
@@ -64,15 +89,26 @@ function getExperimentGroup(userId: number | undefined): "control" | "ml_variant
 }
 
 async function trackEventAsync(event: any) {
-  // Fire and forget: process in next tick
+  // Fire and forget: process in next tick to maintain low client latency
   setImmediate(async () => {
     try {
       const { pool } = await import("./db");
       if (!pool) return;
       await pool.query(
-        `INSERT INTO recommendation_events (user_id, cart_id, item_id, type, experiment_group, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [event.user_id || null, event.cart_id, event.item_id, event.type, event.experiment_group, new Date().toISOString()]
+        `INSERT INTO recommendation_events
+         (user_id, cart_id, item_id, type, experiment_group, order_value, cart_value, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT DO NOTHING`,
+        [
+          event.user_id || null,
+          event.cart_id,
+          event.item_id,
+          event.type,
+          event.experiment_group,
+          event.order_value || null,   // Phase 4: AOV telemetry
+          event.cart_value || null,    // Phase 4: cart value at time of event
+          new Date().toISOString()
+        ]
       );
     } catch (e) {
       console.error("[Async Tracking Error]:", e);
@@ -558,7 +594,10 @@ Return JSON structure:
         const user = await storage.getUser(user_id);
         if (user?.address?.includes("Mumbai")) city = "Mumbai";
         else if (user?.address?.includes("Delhi")) city = "Delhi";
-        // ... extend city detection logic
+        else if (user?.address?.includes("Bhubaneswar") || user?.address?.includes("Bhubaneswar")) city = "Bhubaneswar";
+        else if (user?.address?.includes("Bangalore")) city = "Bangalore";
+        else if (user?.address?.includes("Chennai")) city = "Chennai";
+        else if (user?.address?.includes("Kolkata")) city = "Kolkata";
       }
 
       // Smart cache key includes city and experiment group
@@ -569,17 +608,21 @@ Return JSON structure:
       const cached = recsCache.get(cacheKey);
       if (cached) {
         const latency = Date.now() - start;
+        console.log(`[CSAO] Cache HIT | Latency: ${latency}ms | Group: ${experimentGroup}`);
         return res.status(200).json({ ...cached, latency_ms: latency, cached: true });
       }
 
       // 1. Candidate Retrieval (Stage 1)
       let candidates: (any & { restaurant: any })[] = [];
       const timeSlot = getTimeSlot(hour);
+      let cartValue = 0;
 
       if (itemIds.length > 0) {
-        const cartItemsFull = await Promise.all(itemIds.map(id => storage.getAllMenuItemsWithRestaurants().then(all => all.find(i => i.id === id))));
+        const cartItemsFull = await Promise.all(
+          itemIds.map(id => storage.getAllMenuItemsWithRestaurants().then(all => all.find(i => i.id === id)))
+        );
         const cartCategoryList = Array.from(new Set(cartItemsFull.filter(Boolean).map(i => i!.category)));
-        const cartValue = cartItemsFull.filter(Boolean).reduce((sum, i) => sum + i!.price, 0);
+        cartValue = cartItemsFull.filter(Boolean).reduce((sum, i) => sum + (i!.price || 0), 0);
 
         // Fetch candidates based on meal-chain affinity + city
         const targetCategories = new Set<string>();
@@ -593,30 +636,35 @@ Return JSON structure:
           limit: 200
         });
 
+        console.log(`[CSAO] Stage 1 Retrieved: ${candidates.length} candidates | Cart: [${cartCategoryList.join(", ")}] | City: ${city}`);
+
         // Cold Start Fallback for new carts or low candidate yield
         if (candidates.length < 20) {
+          console.log(`[CSAO] Cold start fallback triggered (< 20 candidates). Fetching popular items.`);
           const fallback = await storage.getPopularItems({ city, limit: 50 });
           candidates = [...candidates, ...fallback.filter(f => !itemIds.includes(f.id))];
+          console.log(`[CSAO] After fallback: ${candidates.length} candidates`);
         }
       } else {
         // Cold Start: Empty Cart / New User
         candidates = await storage.getPopularItems({ city, limit: 100 });
+        console.log(`[CSAO] Cold start (empty cart): ${candidates.length} popular items | City: ${city}`);
       }
 
-      const cartCategories = new Set(itemIds.map(id => candidates.find(c => c.id === id)?.category).filter(Boolean));
-      const cartValue = (itemIds.length > 0) ? 1000 : 0; // Simplified for candidates scoring logic if cartItemsFull not available
-
-      // 2. Ranking (Stage 2)
+      // 2. Ranking (Stage 2) — ONNX ML Inference
       let scoredItems: { item: any; score: number }[] = [];
+      let rankingMethod = "heuristic";
 
       if (experimentGroup === "ml_variant" && onnxSession && candidates.length > 0) {
         try {
+          console.log(`[CSAO ML] Running ONNX inference on ${candidates.length} candidates...`);
+
           const featureVectors: number[][] = candidates.map(item => [
             item.id,
             CATEGORY_ENCODING[item.category] ?? 6,
             (item.price || 0) / 100,
             itemIds.length,
-            0, // Cart value placeholder if not fully calculated
+            cartValue / 100,              // Phase 2: use real cart value
             hour,
             dow
           ]);
@@ -624,15 +672,30 @@ Return JSON structure:
           const flatFeatures = new Float32Array(featureVectors.flat());
           const inputTensor = new ort.Tensor("float32", flatFeatures, [candidates.length, 7]);
           const feeds: Record<string, ort.Tensor> = { [onnxSession.inputNames[0]]: inputTensor };
+          const mlStart = Date.now();
           const results = await onnxSession.run(feeds);
+          const mlLatency = Date.now() - mlStart;
           const outputData = results[onnxSession.outputNames[0]].data as Float32Array;
 
           scoredItems = candidates.map((item, idx) => ({ item, score: outputData[idx] || 0 }));
-        } catch (e) {
-          console.error("[CSAO ML Error] Falling back to heuristics:", e);
+          rankingMethod = "onnx_ml";
+
+          // Phase 2: Log sample ML scores
+          const sampleScores = Array.from(outputData).slice(0, 5).map(s => s.toFixed(4));
+          console.log(`[CSAO ML] ✅ ONNX inference complete | Latency: ${mlLatency}ms | Candidates scored: ${candidates.length} | Sample scores: [${sampleScores.join(", ")}]`);
+        } catch (mlError: any) {
+          console.error(`[CSAO ML] ❌ ONNX inference failed, falling back to heuristics: ${mlError.message}`);
+          rankingMethod = "heuristic_fallback_onnx_error";
         }
+      } else if (experimentGroup === "ml_variant" && onnxLoadFailed) {
+        console.warn(`[CSAO ML] ⚠️ ml_variant requested but ONNX model failed to load. Reason: startup validation failed. Using heuristics.`);
+        rankingMethod = "heuristic_fallback_load_failed";
+      } else if (experimentGroup === "control") {
+        console.log(`[CSAO] Group: control — using heuristic ranking.`);
+        rankingMethod = "heuristic_control";
       }
 
+      // Initialize scores if ML didn't run
       if (scoredItems.length === 0) {
         scoredItems = candidates.map(item => ({ item, score: 0.1 }));
       }
@@ -649,7 +712,7 @@ Return JSON structure:
 
         // Epsilon-Greedy Exploration (5%)
         if (Math.random() < 0.05) {
-          entry.score += Math.random() * 0.5; // Mild exploration boost
+          entry.score += Math.random() * 0.5;
         }
       }
 
@@ -657,11 +720,16 @@ Return JSON structure:
       const topItems = scoredItems.slice(0, 8).map(e => ({ ...e.item, score: e.score.toFixed(4) }));
 
       const latency = Date.now() - start;
-      console.log(`[CSAO] Latency: ${latency}ms | Candidates: ${candidates.length} | Group: ${experimentGroup} | Top: ${topItems.length}`);
+      console.log(`[CSAO] ✅ Done | Latency: ${latency}ms | Candidates: ${candidates.length} | Group: ${experimentGroup} | Ranking: ${rankingMethod} | Top: ${topItems.length}`);
+
+      if (latency > 300) {
+        console.warn(`[CSAO PERF] ⚠️ Latency ${latency}ms exceeded 300ms budget. Consider warming cache or optimizing DB queries.`);
+      }
 
       const result = {
         experiment_group: experimentGroup,
         latency_ms: latency,
+        ranking_method: rankingMethod,
         candidate_count: candidates.length,
         items: topItems,
         context: { city, time_slot: timeSlot }
@@ -700,22 +768,33 @@ Return JSON structure:
 
 
   // ==========================================
-  // Telemetry Event Tracking
+  // Telemetry Event Tracking — Phase 4: AOV
   // ==========================================
   app.post("/api/track", async (req, res) => {
-    const { user_id, cart_id, item_id, type, experiment_group } = req.body;
+    const { user_id, cart_id, item_id, type, experiment_group, order_value, cart_value } = req.body;
     if (!cart_id || !item_id || !type || !experiment_group) {
       return res.status(400).json({ error: "Missing required tracking fields" });
     }
 
+    // Enrich the event object with AOV fields before async write
+    const enrichedEvent = {
+      user_id,
+      cart_id,
+      item_id,
+      type,
+      experiment_group,
+      order_value: order_value ?? null,   // Phase 4: total order value at checkout
+      cart_value: cart_value ?? null,     // Phase 4: cart subtotal at click time
+    };
+
     // Fire and forget for low latency client response
-    trackEventAsync(req.body);
+    trackEventAsync(enrichedEvent);
 
     res.status(200).json({ success: true, queued: true });
   });
 
   // ==========================================
-  // Analytics Endpoint
+  // Analytics Endpoint — Phase 4: AOV aggregation
   // ==========================================
   app.get("/api/experiment-stats", async (req, res) => {
     try {
@@ -727,15 +806,19 @@ Return JSON structure:
           experiment_group,
           COUNT(CASE WHEN type = 'impression' THEN 1 END) as impressions,
           COUNT(CASE WHEN type = 'click' THEN 1 END) as clicks,
-          COUNT(CASE WHEN type = 'add_to_cart' THEN 1 END) as add_to_cart
+          COUNT(CASE WHEN type = 'add_to_cart' THEN 1 END) as add_to_cart,
+          COUNT(CASE WHEN type = 'checkout' THEN 1 END) as checkouts,
+          AVG(CASE WHEN type = 'checkout' AND order_value IS NOT NULL THEN order_value END) as avg_order_value,
+          SUM(CASE WHEN type = 'checkout' AND order_value IS NOT NULL THEN order_value END) as total_revenue,
+          AVG(CASE WHEN cart_value IS NOT NULL THEN cart_value END) as avg_cart_value
         FROM recommendation_events
         GROUP BY experiment_group
       `;
       const result = await pool.query(statsQuery);
 
-      const stats = {
-        ml_variant: { clicks: 0, add_to_cart: 0, ctr: 0, attach_rate: 0 },
-        control: { clicks: 0, add_to_cart: 0, ctr: 0, attach_rate: 0 }
+      const stats: Record<string, any> = {
+        ml_variant: { clicks: 0, add_to_cart: 0, ctr: 0, attach_rate: 0, avg_order_value: 0, total_revenue: 0, avg_cart_value: 0, checkouts: 0 },
+        control: { clicks: 0, add_to_cart: 0, ctr: 0, attach_rate: 0, avg_order_value: 0, total_revenue: 0, avg_cart_value: 0, checkouts: 0 }
       };
 
       for (const row of result.rows) {
@@ -744,11 +827,20 @@ Return JSON structure:
           const impressions = parseInt(row.impressions || "0", 10);
           const clicks = parseInt(row.clicks || "0", 10);
           const addToCart = parseInt(row.add_to_cart || "0", 10);
+          const checkouts = parseInt(row.checkouts || "0", 10);
+          const avgOrderValue = parseFloat(row.avg_order_value || "0");
+          const totalRevenue = parseFloat(row.total_revenue || "0");
+          const avgCartValue = parseFloat(row.avg_cart_value || "0");
 
+          stats[group].impressions = impressions;
           stats[group].clicks = clicks;
           stats[group].add_to_cart = addToCart;
+          stats[group].checkouts = checkouts;
           stats[group].ctr = impressions > 0 ? Number((clicks / impressions).toFixed(4)) : 0;
           stats[group].attach_rate = clicks > 0 ? Number((addToCart / clicks).toFixed(4)) : 0;
+          stats[group].avg_order_value = Number(avgOrderValue.toFixed(2));
+          stats[group].total_revenue = Number(totalRevenue.toFixed(2));
+          stats[group].avg_cart_value = Number(avgCartValue.toFixed(2));
         }
       }
 

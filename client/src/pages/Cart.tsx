@@ -35,7 +35,8 @@ export default function Cart() {
             cart_id: items.map(i => i.id).sort().join(","),
             item_id: rec.id,
             type: "impression",
-            experiment_group: recommendations.experiment_group || "control"
+            experiment_group: recommendations.experiment_group || "control",
+            cart_value: subtotal, // Phase 4: AOV telemetry
           })
         }).catch(console.error);
       });
@@ -46,6 +47,23 @@ export default function Cart() {
     if (!user) {
       setPathLocation("/auth");
       return;
+    }
+
+    // Phase 4: Fire checkout tracking event with order_value for AOV measurement
+    if (recommendations?.experiment_group && items.length > 0) {
+      fetch("/api/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user?.id || null,
+          cart_id: items.map(i => i.id).sort().join(","),
+          item_id: items[0]?.id, // Primary item from cart
+          type: "checkout",
+          experiment_group: recommendations.experiment_group,
+          order_value: total,        // Full order value (after GST + delivery)
+          cart_value: subtotal,      // Cart subtotal before fees
+        })
+      }).catch(console.error);
     }
 
     toast({
@@ -199,11 +217,12 @@ export default function Cart() {
                                     method: "POST",
                                     headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({
-                                      user_id: user?.id || null, // Real user logic
+                                      user_id: user?.id || null,
                                       cart_id: items.map(i => i.id).sort().join(","),
                                       item_id: rec.id,
-                                      type: "click", // Base click event
-                                      experiment_group: recommendations.experiment_group || "control"
+                                      type: "click",
+                                      experiment_group: recommendations.experiment_group || "control",
+                                      cart_value: subtotal, // Phase 4: cart value at click time
                                     })
                                   }).catch(console.error);
 
@@ -214,8 +233,9 @@ export default function Cart() {
                                       user_id: user?.id || null,
                                       cart_id: items.map(i => i.id).sort().join(","),
                                       item_id: rec.id,
-                                      type: "add_to_cart", // Sub-event
-                                      experiment_group: recommendations.experiment_group || "control"
+                                      type: "add_to_cart",
+                                      experiment_group: recommendations.experiment_group || "control",
+                                      cart_value: subtotal, // Phase 4: cart value at add time
                                     })
                                   }).catch(console.error);
 
