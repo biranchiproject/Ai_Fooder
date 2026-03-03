@@ -16,6 +16,18 @@ import { useLocation as useGlobalLocation } from "@/context/LocationContext";
 
 const FILTERS = ["Veg", "Non-Veg", "Fast Delivery", "Rating 4.0+", "Offers", "Pure Veg"];
 
+// Maps quick filter values → readable display labels for active pills
+const QUICK_FILTER_LABELS: Record<string, string> = {
+  "Veg": "Veg Only",
+  "Biryani": "Biryani",
+  "Pizza & Italian": "Pizza",
+  "Chicken": "Chicken",
+  "Burgers": "Burgers",
+  "Cold Drinks": "Cold Drinks",
+  "Ice Cream": "Desserts",
+  "Sweets": "Sweets",
+};
+
 const CATEGORIES = [
   { name: "Odia Special", type: "odia-special", image: "/assets/food/odia-special/pakhala.png" },
   { name: "Biryani", type: "biryani", image: "/assets/food/biryani/hyderabadi.png" },
@@ -199,11 +211,11 @@ export default function Home() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
-                  toggleFilter(cat.label);
+                  toggleFilter(cat.value); // ✅ Use value not label
                 }}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-border/50 bg-secondary/30 backdrop-blur-md transition-all hover:border-primary/40 group",
-                  activeFilters.includes(cat.label) ? "bg-primary/20 border-primary shadow-[0_0_15px_-5px_rgba(var(--primary),0.3)]" : ""
+                  activeFilters.includes(cat.value) ? "bg-primary/20 border-primary shadow-[0_0_15px_-5px_rgba(var(--primary),0.3)]" : ""
                 )}
               >
                 <span className="text-lg group-hover:scale-110 transition-transform">{cat.icon}</span>
@@ -237,7 +249,7 @@ export default function Home() {
                 onClick={() => toggleFilter(f)}
                 className="flex items-center gap-2 rounded-lg border border-primary bg-primary/5 px-3 py-1.5 text-[13px] font-semibold text-primary transition-all hover:bg-primary/10 shadow-sm"
               >
-                {f}
+                {QUICK_FILTER_LABELS[f] || f}
                 <X className="h-3.5 w-3.5" onClick={(e) => { e.stopPropagation(); toggleFilter(f); }} />
               </button>
             ))}
