@@ -83,8 +83,10 @@ export const recommendationEvents = pgTable("recommendation_events", {
   userId: integer("user_id"),
   cartId: text("cart_id").notNull(),
   itemId: integer("item_id").notNull(),
-  type: text("type").notNull(), // "impression" | "click"
+  type: text("type").notNull(), // "impression" | "click" | "add_to_cart" | "checkout"
   experimentGroup: text("experiment_group").notNull(), // "control" | "ml_variant"
+  orderValue: integer("order_value"),    // Phase 4: total order value at checkout (in paise)
+  cartValue: integer("cart_value"),      // Phase 4: cart subtotal at event time (in paise)
   createdAt: text("created_at").notNull(),
 });
 

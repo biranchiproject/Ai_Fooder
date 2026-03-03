@@ -81,6 +81,27 @@ async function initONNX() {
 }
 initONNX();
 
+// ============================================================
+// Auto-Migration: Add new columns if they don't exist yet
+// Runs safely at startup — skips if columns already present
+// ============================================================
+async function runMigrations() {
+  try {
+    const { pool } = await import("./db");
+    if (!pool) return;
+    await pool.query(`
+      ALTER TABLE recommendation_events
+        ADD COLUMN IF NOT EXISTS order_value INTEGER,
+        ADD COLUMN IF NOT EXISTS cart_value INTEGER;
+    `);
+    console.log("[DB MIGRATION] ✅ recommendation_events columns verified/added (order_value, cart_value).");
+  } catch (e: any) {
+    // Non-fatal: server continues even if migration fails (e.g. no DB connection)
+    console.warn("[DB MIGRATION] ⚠️ Could not run migration:", e.message);
+  }
+}
+runMigrations();
+
 function getExperimentGroup(userId: number | undefined): "control" | "ml_variant" {
   if (!userId) return Math.random() < 0.5 ? "control" : "ml_variant";
   const hash = crypto.createHash("md5").update(userId.toString()).digest("hex");
@@ -94,22 +115,36 @@ async function trackEventAsync(event: any) {
     try {
       const { pool } = await import("./db");
       if (!pool) return;
-      await pool.query(
-        `INSERT INTO recommendation_events
-         (user_id, cart_id, item_id, type, experiment_group, order_value, cart_value, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT DO NOTHING`,
-        [
-          event.user_id || null,
-          event.cart_id,
-          event.item_id,
-          event.type,
-          event.experiment_group,
-          event.order_value || null,   // Phase 4: AOV telemetry
-          event.cart_value || null,    // Phase 4: cart value at time of event
-          new Date().toISOString()
-        ]
-      );
+      try {
+        // Try full insert with AOV columns
+        await pool.query(
+          `INSERT INTO recommendation_events
+           (user_id, cart_id, item_id, type, experiment_group, order_value, cart_value, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            event.user_id || null,
+            event.cart_id,
+            event.item_id,
+            event.type,
+            event.experiment_group,
+            event.order_value || null,   // Phase 4: AOV telemetry
+            event.cart_value || null,    // Phase 4: cart value at time of event
+            new Date().toISOString()
+          ]
+        );
+      } catch (insertErr: any) {
+        // If new columns don't exist yet (42703 = undefined_column), fallback to old schema
+        if (insertErr.code === '42703') {
+          console.warn("[Tracking] order_value/cart_value columns missing, using fallback insert. Run DB migration.");
+          await pool.query(
+            `INSERT INTO recommendation_events (user_id, cart_id, item_id, type, experiment_group, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [event.user_id || null, event.cart_id, event.item_id, event.type, event.experiment_group, new Date().toISOString()]
+          );
+        } else {
+          throw insertErr;
+        }
+      }
     } catch (e) {
       console.error("[Async Tracking Error]:", e);
     }
