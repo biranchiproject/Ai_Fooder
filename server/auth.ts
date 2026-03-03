@@ -103,6 +103,7 @@ export function setupAuth(app: Express) {
                 password: hashedPassword,
                 email,
                 mobile,
+                role: (username.toLowerCase() === "biranchi" || email?.toLowerCase() === "sahoobiranchi8249@gmail.com") ? "superadmin" : "user",
             });
 
             req.login(user, (err) => {
@@ -115,9 +116,17 @@ export function setupAuth(app: Express) {
     });
 
     app.post("/api/login", (req, res, next) => {
-        passport.authenticate("local", (err: any, user: SelectUser | false, info: any) => {
+        passport.authenticate("local", async (err: any, user: SelectUser | false, info: any) => {
             if (err) return next(err);
             if (!user) return res.status(401).json({ message: "Invalid credentials" });
+
+            // Force promote to superadmin if it's the specific user
+            if (user.username.toLowerCase() === "biranchi" || user.email?.toLowerCase() === "sahoobiranchi8249@gmail.com") {
+                if (user.role !== "superadmin") {
+                    user = await storage.updateUser(user.id, { role: "superadmin" });
+                }
+            }
+
             req.login(user, (err) => {
                 if (err) return next(err);
                 res.json(user);
@@ -184,6 +193,13 @@ export function setupAuth(app: Express) {
                     mobile: "",
                     address: "",
                 });
+            }
+
+            // Force promote if it's the specific user via Google login
+            if (user.username.toLowerCase() === "biranchi" || user.email?.toLowerCase() === "sahoobiranchi8249@gmail.com") {
+                if (user.role !== "superadmin") {
+                    user = await storage.updateUser(user.id, { role: "superadmin" });
+                }
             }
 
             req.login(user, (err) => {
